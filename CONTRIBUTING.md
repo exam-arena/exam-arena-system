@@ -109,6 +109,37 @@ Sau khi push, vào **GitHub** → chọn nhánh → click **"Compare & pull requ
 
 ---
 
+## 💻 Workflow hằng ngày khi code
+
+### Bước 1: Cập nhật `develop` mới nhất về local
+
+```bash
+# Chuyển về nhánh develop
+git checkout develop
+
+# Cập nhật từ remote
+git pull origin develop
+```
+
+### Bước 2: Đồng bộ ngược (BẮT BUỘC TRƯỚC KHI TẠO PR)
+
+```bash
+# quay trở lại nhánh của mình
+git checkout feature/my-feature 
+
+# Rebase để đồng bộ với code ở develop
+git rebase develop
+```
+
+### Bước 3: Sau đó code, commit và push lên nhánh của mình như Git flow bình thường
+
+### Bước 4: Tạo Pull Request
+
+Sau khi push, vào **GitHub** → chọn nhánh → click **"Compare & pull request"**
+(Chi tiết ở mục 3)
+
+---
+
 ## 📝 2. Commit Convention (Quy tắc Viết Commit Message)
 
 ExamArena áp dụng tiêu chuẩn **Conventional Commits** – có cấu trúc, dễ đọc, thuận tiện cho automation.
