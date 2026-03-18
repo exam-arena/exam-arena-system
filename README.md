@@ -88,10 +88,10 @@ Tạo file `.env` trong thư mục gốc:
 DATABASE_URL=postgresql://user:password@host:5432/examarena
 JWT_SECRET=your-secret-key-min-32-chars
 GO_ENV=development
-API_PORT=8080
+API_PORT=8081
 
 # Frontend
-NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_API_URL=http://localhost:8081
 ```
 
 ⚠️ **Lưu ý:** File `.env` chứa thông tin nhạy cảm - **TUYỆT ĐỐI KHÔNG PUSH LÊN GITHUB**. Nó đã được thêm vào `.gitignore`.
@@ -120,8 +120,8 @@ Sau khi container chạy thành công:
 | Dịch vụ                | URL                                                                                  | Chi tiết              |
 | :--------------------- | :----------------------------------------------------------------------------------- | :-------------------- |
 | **Web App (Frontend)** | [http://localhost:3000](http://localhost:3000)                                       | Next.js UI            |
-| **API Backend**        | [http://localhost:8080](http://localhost:8080)                                       | Go RESTful API        |
-| **API Documentation**  | [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html) | Swagger UI (Test API) |
+| **API Backend**        | [http://localhost:8081](http://localhost:8081)                                       | Go RESTful API        |
+| **API Documentation**  | [http://localhost:8081/swagger/index.html](http://localhost:8081/swagger/index.html) | Swagger UI (Test API) |
 
 ### Dừng containers
 

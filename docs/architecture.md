@@ -49,7 +49,7 @@ ExamArena sử dụng kiến trúc **Decoupled** (Phân tán 3-Tier):
 │  - Auto-save State (JSONB Storage)                      │
 │  - Analytics & Report Generation                         │
 │  - Swagger/OpenAPI Documentation                         │
-│  Port: 8080                                              │
+│  Port: 8081                                              │
 └──────────────────────┬───────────────────────────────────┘
                        │
         ↓ (PostgreSQL Protocol)
@@ -88,7 +88,7 @@ Frontend (localhost:3000)
       ├──→ POST /api/v1/exams/:id/submit
       └──→ GET /api/v1/exams/:id/results
                     ↓
-           Backend (localhost:8080)
+           Backend (localhost:8081)
                     │
                     ├──→ Validate JWT Token
                     ├──→ Business Logic Processing
@@ -554,7 +554,7 @@ func main() {
     routes.SetupRoutes(authController, examController)
 
     // Start server
-    log.Fatal(http.ListenAndServe(":8080", nil))
+    log.Fatal(http.ListenAndServe(":8081", nil))
 }
 ```
 
@@ -740,7 +740,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 swag init
 
 # Access at
-http://localhost:8080/swagger/index.html
+http://localhost:8081/swagger/index.html
 ```
 
 ---
@@ -826,7 +826,7 @@ docker compose up --build
 **Services:**
 
 - Frontend container (Next.js, port 3000)
-- Backend container (Go, port 8080)
+- Backend container (Go, port 8081)
 - Database (Neon Cloud - external)
 
 ### 8.2 Production Deployment (May 2026)
@@ -860,7 +860,7 @@ PostgreSQL 17 (Neon Cloud)
 DATABASE_URL=postgresql://user:pass@neon.tech:5432/examarena
 JWT_SECRET=your-min-32-chars-secret
 GO_ENV=production
-API_PORT=8080
+API_PORT=8081
 ```
 
 **Frontend `.env.local`:**
