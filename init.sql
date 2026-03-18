@@ -1,0 +1,160 @@
+-- =========================================================================
+-- 0. HÀM HỖ TRỢ (TRIGGER FUNCTION TỰ ĐỘNG CẬP NHẬT updated_at)
+-- =========================================================================
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================================================================
+-- 1. BẢNG MASTER (DỮ LIỆU CỐT LÕI)
+-- =========================================================================
+
+CREATE TABLE users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    fullname VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    role VARCHAR(20) DEFAULT 'student',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ DEFAULT NULL -- Phục vụ Soft Delete
+);
+
+CREATE TABLE exam_room (
+    room_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(50),
+    price DECIMAL(10, 2) DEFAULT 0.0,
+    test_quantity INT DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ DEFAULT NULL
+);
+
+-- =========================================================================
+-- 2. BẢNG QUẢN LÝ QUYỀN VÀ GIAO DỊCH
+-- =========================================================================
+
+CREATE TABLE user_room_access (
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    room_id UUID REFERENCES exam_room(room_id) ON DELETE CASCADE,
+    granted_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    expired_at TIMESTAMPTZ,
+    PRIMARY KEY (user_id, room_id)
+);
+
+CREATE TABLE payment (
+    transaction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    room_id UUID REFERENCES exam_room(room_id) ON DELETE SET NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    type VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================================================
+-- 3. BẢNG CẤU TRÚC ĐỀ THI
+-- =========================================================================
+
+CREATE TABLE exam (
+    exam_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID REFERENCES exam_room(room_id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    type VARCHAR(50),
+    capacity INT,
+    duration INT NOT NULL, 
+    start_time TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ DEFAULT NULL
+);
+
+CREATE TABLE exam_section (
+    section_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    exam_id UUID REFERENCES exam(exam_id) ON DELETE CASCADE,
+    title VARCHAR(150) NOT NULL,
+    duration INT 
+);
+
+CREATE TABLE question (
+    question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    section_id UUID REFERENCES exam_section(section_id) ON DELETE CASCADE,
+    parent_id UUID REFERENCES question(question_id) ON DELETE CASCADE, 
+    content TEXT NOT NULL,
+    image_url VARCHAR(255), -- Đã bổ sung theo ERD
+    options JSONB, 
+    correct_answer TEXT,
+    explanation TEXT,
+    point DECIMAL(5, 2) DEFAULT 0.0,
+    type VARCHAR(50),
+    question_type VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ DEFAULT NULL
+);
+
+-- =========================================================================
+-- 4. BẢNG TRACKING QUÁ TRÌNH THI (LỊCH SỬ)
+-- =========================================================================
+
+CREATE TABLE exam_attempt (
+    attempt_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(user_id) ON DELETE RESTRICT, -- Thay đổi thành RESTRICT để bảo vệ dữ liệu thi
+    exam_id UUID REFERENCES exam(exam_id) ON DELETE RESTRICT,  -- Thay đổi thành RESTRICT
+    attempt_type VARCHAR(50),
+    marks DECIMAL(5, 2) DEFAULT 0.0,
+    status VARCHAR(20) DEFAULT 'in_progress',
+    started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    end_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE attempt_section_log (
+    log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attempt_id UUID REFERENCES exam_attempt(attempt_id) ON DELETE CASCADE,
+    section_id UUID REFERENCES exam_section(section_id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'in_progress',
+    started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    end_at TIMESTAMPTZ
+);
+
+CREATE TABLE attempt_detail (
+    detail_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    log_id UUID REFERENCES attempt_section_log(log_id) ON DELETE CASCADE,
+    question_id UUID REFERENCES question(question_id) ON DELETE RESTRICT, -- Ngăn việc xóa câu hỏi làm hỏng chi tiết bài làm cũ
+    selected_ans TEXT,
+    is_correct BOOLEAN
+);
+
+-- =========================================================================
+-- 5. ÁP DỤNG TRIGGERS
+-- =========================================================================
+CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_exam_room_modtime BEFORE UPDATE ON exam_room FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_payment_modtime BEFORE UPDATE ON payment FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_exam_modtime BEFORE UPDATE ON exam FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_question_modtime BEFORE UPDATE ON question FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_exam_attempt_modtime BEFORE UPDATE ON exam_attempt FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+-- =========================================================================
+-- 6. TẠO INDEXES (TỐI ƯU HIỆU SUẤT TRUY VẤN)
+-- =========================================================================
+
+CREATE INDEX idx_user_room_access_user ON user_room_access(user_id);
+CREATE INDEX idx_payment_user ON payment(user_id);
+CREATE INDEX idx_exam_room ON exam(room_id);
+CREATE INDEX idx_question_section ON question(section_id);
+CREATE INDEX idx_question_parent ON question(parent_id);
+CREATE INDEX idx_exam_attempt_user_exam ON exam_attempt(user_id, exam_id);
+CREATE INDEX idx_attempt_detail_log ON attempt_detail(log_id);
+
+-- Tối ưu truy vấn JSONB cho các options câu hỏi
+CREATE INDEX idx_question_options ON question USING GIN (options);
