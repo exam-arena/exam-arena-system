@@ -1,0 +1,11 @@
+# Bỏ qua các thư mục dependencies và cache của máy host
+node_modules
+npm-debug.log
+.next
+out
+build
+dist
+
+# Bỏ qua các file môi trường (để tránh rò rỉ credential)
+.env*.local
+.env
