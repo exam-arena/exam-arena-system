@@ -127,3 +127,32 @@
     @apply font-sans;
   }
 }
+
+/* Swiper container */
+.swiper {
+  padding-bottom: 40px; 
+}
+
+/* Pagination */
+.swiper-pagination {
+  position: relative !important;
+  margin-top: 16px;
+  bottom: auto !important;
+}
+
+/* Bullet */
+.swiper-pagination-bullet {
+  width: 8px;
+  height: 8px;
+  background: #004edc;
+  opacity: 0.25;
+  border-radius: 999px;
+  transition: all 0.3s ease;
+}
+
+/* Active */
+.swiper-pagination-bullet-active {
+  opacity: 1;
+  width: 24px;
+  background: #004edc;
+}

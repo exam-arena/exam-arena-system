@@ -4,3 +4,4 @@ frontend/.next/
 backend/tmp/
 .env
 .DS_Store
+.agent/
