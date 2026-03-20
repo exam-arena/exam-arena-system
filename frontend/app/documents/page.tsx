@@ -31,36 +31,41 @@ export default async function DocumentsPage({
     const mockDocs = allMockDocs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
-        <main className="min-h-screen bg-neutral-50 flex flex-col items-center mx-auto max-w-[1920px] font-roboto">
+        <main className="min-h-screen bg-neutral-50 flex flex-col w-full font-roboto">
             <Header />
             <Banner />
 
-            <section className="w-full bg-[#F6FBFF] py-8 sm:py-12 px-4 sm:px-8 xl:px-24 flex-grow flex justify-center">
-                <div className="w-full max-w-[1248px] grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 lg:gap-8 items-start">
+            <section className="w-full bg-[#F6FBFF] py-8 sm:py-12 flex-grow border-t border-blue-50">
 
-                    {/* Left Sidebar: Filters */}
-                    <FilterSidebar />
+                <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px]">
 
-                    {/* Right Content: Document List */}
-                    <div className="w-full flex flex-col gap-6">
-                        <h2 className="text-2xl lg:text-[28px] font-bold text-[#004EDC]">
-                            Danh sách tài liệu
-                        </h2>
+                    <div className="w-full grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 lg:gap-8 items-start">
 
-                        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                            {mockDocs.map((doc) => (
-                                <DocCard key={doc.id} {...doc} />
-                            ))}
+                        {/* Left Sidebar: Filters */}
+                        <FilterSidebar />
+
+                        {/* Right Content: Document List */}
+                        <div className="w-full flex flex-col gap-6">
+                            <h2 className="text-2xl lg:text-[28px] font-bold text-[#004EDC]">
+                                Danh sách tài liệu
+                            </h2>
+
+                            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                {mockDocs.map((doc) => (
+                                    <DocCard key={doc.id} {...doc} />
+                                ))}
+                            </div>
+
+                            {/* Pagination Component */}
+                            <div className="mt-8 flex justify-center w-full">
+                                <CustomPagination
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    basePath="/documents"
+                                />
+                            </div>
                         </div>
 
-                        {/* Pagination Component */}
-                        <div className="mt-8 flex justify-center w-full">
-                            <CustomPagination
-                                currentPage={currentPage}
-                                totalPages={totalPages}
-                                basePath="/documents"
-                            />
-                        </div>
                     </div>
 
                 </div>
