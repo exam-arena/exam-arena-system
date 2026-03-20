@@ -1,0 +1,102 @@
+{
+  "status": "success",
+  "message": "Lấy dữ liệu đề thi thành công",
+  "data": {
+    "exam_id": "exam-thpt-math-2026-001",
+    "title": "Đề thi thử THPT Quốc Gia 2026 - Môn Toán (Chuẩn cấu trúc mới)",
+    "duration_minutes": 90,
+    "questions": [
+      {
+        "question_id": "q-part1-001",
+        "parent_id": null,
+        "type": "single_choice",
+        "content": "Phần I. Cho hàm số $f(x) = e^x + 2x$. Khẳng định nào dưới đây đúng?",
+        "image_url": null,
+        "options": [
+          {"id": "A", "text": "$\\int f(x)dx = e^x + x^2 + C$"},
+          {"id": "B", "text": "$\\int f(x)dx = e^x + 2x^2 + C$"},
+          {"id": "C", "text": "$\\int f(x)dx = e^x - x^2 + C$"},
+          {"id": "D", "text": "$\\int f(x)dx = e^x + C$"}
+        ],
+        "correct_answer": "A"
+      },
+      {
+        "question_id": "q-part1-002",
+        "parent_id": null,
+        "type": "single_choice",
+        "content": "Phần I. Cho khối chóp $S.ABCD$ có đáy là hình vuông cạnh $a$, $SA$ vuông góc với đáy và $SA = a\\sqrt{2}$ (tham khảo hình vẽ). Thể tích của khối chóp đã cho bằng:",
+        "image_url": "https://res.cloudinary.com/dfbsdiq9p/image/upload/v1767290691/Gemini_Generated_Image_qa9n92qa9n92qa9n_hvuawy.png",
+        "options": [
+          {"id": "A", "text": "$\\frac{\\sqrt{2}a^3}{3}$"},
+          {"id": "B", "text": "$\\frac{\\sqrt{2}a^3}{6}$"},
+          {"id": "C", "text": "$\\sqrt{2}a^3$"},
+          {"id": "D", "text": "$\\frac{a^3}{3}$"}
+        ],
+        "correct_answer": "A"
+      },
+      {
+        "question_id": "q-part2-context",
+        "parent_id": null,
+        "type": "cluster_context",
+        "content": "Phần II. Cho hàm số bậc ba $y=f(x)$ có đồ thị là đường cong như hình bên. Căn cứ vào đồ thị, xét tính đúng sai của các phát biểu sau:",
+        "image_url": "https://res.cloudinary.com/dfbsdiq9p/image/upload/v1767291860/Gemini_Generated_Image_koyi8ckoyi8ckoyi_wtyvft.png",
+        "options": null,
+        "correct_answer": null
+      },
+      {
+        "question_id": "q-part2-child-a",
+        "parent_id": "q-part2-context",
+        "type": "true_false",
+        "content": "a) Hàm số đã cho đồng biến trên khoảng $(-1; 1)$.",
+        "image_url": null,
+        "options": [
+          {"id": "True", "text": "Đúng"},
+          {"id": "False", "text": "Sai"}
+        ],
+        "correct_answer": "False"
+      },
+      {
+        "question_id": "q-part2-child-b",
+        "parent_id": "q-part2-context",
+        "type": "true_false",
+        "content": "b) Giá trị cực đại của hàm số là $y_{CĐ} = 2$.",
+        "image_url": null,
+        "options": [
+          {"id": "True", "text": "Đúng"},
+          {"id": "False", "text": "Sai"}
+        ],
+        "correct_answer": "True"
+      },
+      {
+        "question_id": "q-part2-child-c",
+        "parent_id": "q-part2-context",
+        "type": "true_false",
+        "content": "c) Phương trình $f(x) - 1 = 0$ có đúng 3 nghiệm phân biệt.",
+        "image_url": null,
+        "options": [
+          {"id": "True", "text": "Đúng"},
+          {"id": "False", "text": "Sai"}
+        ],
+        "correct_answer": "True"
+      },
+      {
+        "question_id": "q-part3-001",
+        "parent_id": null,
+        "type": "short_answer",
+        "content": "Phần III. Câu hỏi trả lời ngắn: Một chất điểm chuyển động với gia tốc $a(t) = 3t^2 + t$ ($m/s^2$). Biết vận tốc ban đầu $v(0) = 2$ $m/s$. Quãng đường chất điểm đi được trong 2 giây đầu tiên là bao nhiêu mét? (Nhập đáp án làm tròn đến chữ số thập phân thứ nhất).",
+        "image_url": null,
+        "options": null,
+        "correct_answer": "10.7"
+      },
+      {
+        "question_id": "q-part3-002",
+        "parent_id": null,
+        "type": "short_answer",
+        "content": "Phần III. Trong không gian với hệ tọa độ $Oxyz$, cho mặt phẳng $(P): 2x - y + 2z - 5 = 0$ và điểm $A(1; 0; 2)$. Khoảng cách từ điểm $A$ đến mặt phẳng $(P)$ bằng $\\frac{a}{b}$ (với $\\frac{a}{b}$ là phân số tối giản). Tính giá trị của biểu thức $S = a + b$.",
+        "image_url": null,
+        "options": null,
+        "correct_answer": "4"
+      }
+    ]
+  }
+}
