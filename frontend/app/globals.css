@@ -45,6 +45,12 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-aliceblue: #f6fbff;
+  --color-mediumslateblue: #004edc;
+  --color-cornflowerblue-100: #92b8ff;
+  --color-cornflowerblue-200: rgba(146, 184, 255, 0.2);
+  --radius-num-8: 8px;
+  --radius-num-30: 30px;
 }
 
 :root {
