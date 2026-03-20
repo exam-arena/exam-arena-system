@@ -7,6 +7,8 @@ interface SidebarProps {
   time?: string;
   totalQuestions?: number;
   answeredQuestions?: number[];
+  currentIndex?: number;
+  onSelectQuestion?: (index: number) => void;
   onSubmit?: () => void;
   onExit?: () => void;
   user?: {
@@ -21,7 +23,9 @@ interface SidebarProps {
 export function Sidebar({
   time = "90:00",
   totalQuestions = 22,
-  answeredQuestions = [1],
+  answeredQuestions = [],
+  currentIndex = 0,
+  onSelectQuestion,
   onSubmit,
   onExit,
   user = {
@@ -39,13 +43,18 @@ export function Sidebar({
           <Timer time={time} />
         </div>
         <div className="w-full flex justify-center">
-          <QuestionNavigator total={totalQuestions} answered={answeredQuestions} />
+          <QuestionNavigator 
+            total={totalQuestions} 
+            answered={answeredQuestions} 
+            currentIndex={currentIndex}
+            onSelect={onSelectQuestion}
+          />
         </div>
         <button 
           onClick={onSubmit}
-          className="rounded-num-30 bg-white border-cornflowerblue-100 border border-solid overflow-hidden flex items-center justify-center py-2 px-5 hover:bg-cornflowerblue-200 transition-colors cursor-pointer text-mediumslateblue"
+          className="rounded-num-30 bg-white border-cornflowerblue-100 border border-solid overflow-hidden flex items-center justify-center py-2 px-5 hover:bg-cornflowerblue-200 transition-colors w-full cursor-pointer text-mediumslateblue"
         >
-          <span className="leading-6">Nộp bài</span>
+          <span className="leading-6 font-medium">Nộp bài</span>
         </button>
       </div>
 
