@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, ChevronDown, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,60 +16,93 @@ import Image from "next/image";
 
 const navLinks = [
   { label: "Trang chủ", href: "/" },
-  { label: "Đề thi tuyển chọn", href: "/exams" },
+  { label: "Phòng luyện thi", href: "/rooms" },
+  { label: "Đề thi", href: "/exams" },
   { label: "Tài liệu tham khảo", href: "/documents" },
 ];
 
-export default function Header() {
+export interface HeaderProps {
+  isLoggedIn?: boolean;
+  user?: {
+    name: string;
+    avatar?: string;
+  };
+}
+
+export default function Header({ 
+  isLoggedIn = false, 
+  user = { name: "User 1" } 
+}: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-20">
+    <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-[5rem] overflow-hidden">
       {/* ─── Desktop ─── */}
-      <div className="hidden lg:flex items-center h-full px-24 gap-6 max-w-[1440px] mx-auto">
+      <div className="hidden lg:flex items-center justify-between h-full px-[6rem] max-w-[1920px] mx-auto gap-[1.5rem]">
+        
         {/* Logo */}
-        <Link href="/" className="flex flex-col shrink-0 items-center">
-          <Image
-            src="/logoamban.png"
-            alt="Exam Arena"
-            width={190}
-            height={50}
-            priority
-            className="object-contain"
-          />
-          <span className="text-[10px] text-white/100 text-center tracking-widest uppercase leading-none mt-2">
-            Hệ thống luyện thi THPTQG
-          </span>
+        <Link href="/" className="flex flex-col shrink-0 items-center justify-center p-[0.625rem] w-[11.75rem]">
+          <div className="flex flex-col items-center justify-center gap-[0.25rem]">
+            <Image
+              src="/logoamban.png"
+              alt="Exam Arena"
+              width={168}
+              height={24}
+              priority
+              className="w-[10.5rem] relative max-h-full object-cover"
+            />
+            <span className="text-[0.625rem] text-white font-medium tracking-widest uppercase leading-[0.875rem] mt-1">
+              Hệ thống luyện thi THPTQG
+            </span>
+          </div>
         </Link>
+
         {/* Nav */}
-        <nav className="flex items-center gap-12 ml-30">
+        <nav className="flex items-center justify-center gap-[2.5rem] h-[1.25rem] text-[1rem] font-bold text-white">
           {navLinks.map((link) => (
-            <Link key={link.href} href={link.href}>
-              <Button variant="ghost" className="text-sm font-medium text-white hover:text-[#FFD600] hover:bg-transparent whitespace-nowrap px-0">
-                {link.label}
-              </Button>
+            <Link key={link.href} href={link.href} className="flex items-center justify-center hover:text-[#FFD600] transition-colors">
+              <span className="leading-[1.25rem] whitespace-nowrap">{link.label}</span>
             </Link>
           ))}
         </nav>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+        {/* Right Actions */}
+        <div className="flex items-center justify-end gap-[0.75rem] w-[25rem]">
+          
+          {/* Search Bar - Hiện ở cả 2 trạng thái */}
+          <div className="relative flex items-center h-[2.25rem] w-[16.938rem] rounded-[30px] bg-white/20 px-[1rem] gap-[0.25rem] shrink-0 overflow-hidden">
+            <Search className="size-[1.25rem] text-white/70 shrink-0" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm"
+              className="w-full bg-transparent border-none text-[0.875rem] text-white placeholder:text-white/70 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-full placeholder:font-normal font-normal"
+            />
+          </div>
 
-        {/* Search */}
-        <div className="relative flex items-center">
-          <Search className="absolute left-3 size-4 text-white/50 pointer-events-none z-10" />
-          <Input
-            type="text"
-            value={searchQuery}
-            placeholder="Tìm kiếm"
-            className="h-9 w-70 rounded-full border border-white/20 bg-white/10 backdrop-blur-md pl-9 pr-4 text-sm text-white placeholder:text-white/50 focus-visible:ring-1 focus-visible:ring-white/40 focus-visible:outline-none"
-          />
+          {/* Conditional Auth Block */}
+          {isLoggedIn ? (
+            <div className="h-[2.25rem] rounded-[30px] bg-white/20 border border-white box-border flex items-center justify-center py-[0.5rem] px-[0.75rem] gap-[0.5rem] shrink-0 cursor-pointer hover:bg-white/30 transition-colors group">
+              <div className="flex items-center gap-[0.35rem] shrink-0">
+                <div className="size-[1.5rem] bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
+                  {user?.avatar ? (
+                    <Image src={user.avatar} width={24} height={24} alt="Avatar" className="object-cover" />
+                  ) : (
+                    <User className="size-[1rem] text-white" />
+                  )}
+                </div>
+                <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.name}</span>
+              </div>
+              <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-[2px] transition-transform" />
+            </div>
+          ) : (
+            <Button asChild className="h-[2.25rem] px-[1.5rem] rounded-[30px] bg-[#FFD600] text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D] border-none shrink-0">
+              <Link href="/login">Đăng nhập</Link>
+            </Button>
+          )}
+
         </div>
-
-        {/* CTA */}
-        <Button asChild className="h-9 px-5 rounded-full bg-[#FFD600] text-sm font-semibold text-gray-900 hover:bg-[#FFE44D] border-none">
-          <Link href="/login">Đăng nhập</Link>
-        </Button>
       </div>
 
       {/* ─── Mobile ─── */}
@@ -84,16 +117,23 @@ export default function Header() {
             priority
             className="object-contain"
           />
-          <span className="text-[9px] text-white/90 text-center tracking-widest uppercase leading-none mt-1">
-            Hệ thống luyện thi THPTQG
+          <span className="text-[9px] text-white/90 text-center uppercase leading-none mt-1">
+            Hệ thống luyện thi
           </span>
         </Link>
 
         {/* Mobile actions */}
         <div className="flex items-center gap-3">
-          <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold text-gray-900 hover:bg-[#FFE44D] border-none">
-            <Link href="/login">Đăng nhập</Link>
-          </Button>
+          
+          {isLoggedIn ? (
+            <div className="size-8 rounded-full bg-white/20 border border-white flex items-center justify-center">
+              {user?.avatar ? ( <Image src={user.avatar} width={32} height={32} alt="User" className="rounded-full" /> ) : ( <User className="size-4 text-white" /> )}
+            </div>
+          ) : (
+            <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold text-gray-900 hover:bg-[#FFE44D] border-none">
+              <Link href="/login">Đăng nhập</Link>
+            </Button>
+          )}
 
           <Sheet>
             <SheetTrigger asChild>
@@ -116,19 +156,6 @@ export default function Header() {
                   </Link>
                 ))}
               </nav>
-
-              <div className="px-4 mt-6">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none z-10" />
-                  <Input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Tìm kiếm"
-                    className="h-10 w-full rounded-full border-none bg-white pl-9 pr-4 text-sm text-gray-800 placeholder:text-gray-400"
-                  />
-                </div>
-              </div>
             </SheetContent>
           </Sheet>
         </div>

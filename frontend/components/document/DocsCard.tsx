@@ -7,15 +7,15 @@ type ExamCardProps = {
     id?: string | number;
     title: string;
     subject: string;
-    duration: string;
+    author: string;
     image?: string;
 };
 
-export default function ExamCard({
+export default function DocsCard({
     id = 1,
     title,
     subject,
-    duration,
+    author,
     image = "/carddethi.png",
 }: ExamCardProps) {
     return (
@@ -43,10 +43,10 @@ export default function ExamCard({
                 </h3>
 
                 <p className="text-[11px] sm:text-xs text-[#92B8FF] mb-2 sm:mb-3">
-                    Môn học: {subject} | Thời lượng: {duration}
+                    Môn học: {subject} | Tác giả: {author}
                 </p>
 
-                <Link href={`/exams/${id}`}>
+                <Link href={`/documents/${id}`}>
                     <Button
                         variant="outline"
                         className="
@@ -57,7 +57,7 @@ export default function ExamCard({
                             transition-colors
                         "
                     >
-                        Làm bài
+                        Xem chi tiết
                     </Button>
                 </Link>
             </CardContent>

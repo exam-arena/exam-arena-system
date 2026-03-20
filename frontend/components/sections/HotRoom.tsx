@@ -3,9 +3,18 @@
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay } from "swiper/modules";
 import "swiper/swiper-bundle.css";
-import RoomCard from "../room/RoomCard";
+import RoomCard from "@/components/room/RoomCard";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-const exams = [1, 2, 3, 4, 5, 6];
+const mockRooms = Array(6).fill({
+    title: "PHÒNG THI THỬ TOÁN THPTQG",
+    subtitle: "Lớp 12 luyện thi đại học",
+    capacity: "504/1000",
+    target: "Tất cả",
+    status: "Đang mở",
+    type: "Trực tuyến",
+}).map((room, i) => ({ ...room, id: i + 1 }));
 
 export default function HotExam() {
     return (
@@ -28,13 +37,13 @@ export default function HotExam() {
                 </div>
 
                 {/* Card*/}
-                <div className="max-w-[1248px] mx-auto">
+                <div className="max-w-[1248px] mx-auto pb-8">
 
                     <Swiper
                         modules={[Pagination, Autoplay]}
                         pagination={{ clickable: true }}
                         autoplay={{
-                            delay: 3000,
+                            delay: 3500,
                             disableOnInteraction: false,
                             pauseOnMouseEnter: true,
                         }}
@@ -45,22 +54,14 @@ export default function HotExam() {
                             1024: { slidesPerView: 3 },
                         }}
                     >
-                        {exams.map((item) => (
-                            <SwiperSlide key={item}>
-                                <RoomCard
-                                    title="PHÒNG THI THỬ TOÁN THPTQG"
-                                    subtitle="Lớp 12 luyện thi đại học"
-                                    capacity="504/1000"
-                                    target="Tất cả"
-                                    status="Đang mở"
-                                    type="Trực tuyến"
-                                />
+                        {mockRooms.map((room) => (
+                            <SwiperSlide key={room.id} className="pb-12">
+                                <RoomCard {...room} />
                             </SwiperSlide>
                         ))}
                     </Swiper>
 
                 </div>
-
             </div>
         </section>
     );
