@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 type RoomCardProps = {
+    id?: string | number;
     title: string;
     subtitle?: string;
     level?: string; // THPT
@@ -21,6 +23,7 @@ type RoomCardProps = {
 };
 
 export default function RoomCard({
+    id = 1,
     title,
     subtitle,
     level = "THPT",
@@ -101,12 +104,14 @@ export default function RoomCard({
 
                 {/* Button */}
                 <div className="mt-6 flex justify-center">
-                    <Button
-                        variant="outline"
-                        className="rounded-full border-[#004EDC] text-[#004EDC] px-6 hover:bg-[#004EDC] hover:text-white"
-                    >
-                        Xem chi tiết
-                    </Button>
+                    <Link href={`/rooms/${id}`}>
+                        <Button
+                            variant="outline"
+                            className="rounded-full border-[#004EDC] text-[#004EDC] px-6 hover:bg-[#004EDC] hover:text-white"
+                        >
+                            Xem chi tiết
+                        </Button>
+                    </Link>
                 </div>
 
             </CardContent>

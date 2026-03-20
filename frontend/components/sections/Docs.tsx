@@ -1,16 +1,17 @@
 "use client";
 
-import ExamCard from "@/components/exam/ExamCard";
+import DocsCard from "@/components/document/DocsCard";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-const exams = Array(4).fill({
-    title: "ĐỀ ÔN LUYỆN SỐ 1",
+const docs = Array(4).fill({
+    title: "TỔNG HỢP CÔNG THỨC TOÁN",
     subject: "Toán học",
-    duration: "90 phút",
+    description: "Tài liệu sát với đề thi, đầy đủ chi tiết.",
     image: "/carddethi.png",
-});
+}).map((doc, index) => ({ ...doc, id: index + 1 }));
 
-export default function NewExam() {
+export default function DocsSection() {
     return (
         <section className="w-full bg-[#F6FBFF] py-9 md:py-[36px]">
 
@@ -21,11 +22,11 @@ export default function NewExam() {
                 <div className="flex flex-col items-center gap-1 mb-6 md:mb-[24px]">
 
                     <h2 className="text-xl sm:text-2xl md:text-[32px] font-bold text-[#004EDC] text-center leading-tight">
-                        ĐỀ ÔN LUYỆN MỚI NHẤT
+                        TÀI LIỆU THAM KHẢO
                     </h2>
 
                     <p className="text-sm md:text-base text-[#92B8FF] text-center">
-                        Đầy đủ các chuyên đề trọng tâm ôn thi THPTQG
+                        Kho tàng tài liệu đầy đủ, sát với đề thi thật
                     </p>
 
                 </div>
@@ -35,9 +36,9 @@ export default function NewExam() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-6 md:gap-y-8 gap-x-8 md:gap-x-10">
 
-                        {exams.map((exam, index) => (
-                            <div key={index} className={index >= 4 ? "hidden md:block" : ""}>
-                                <ExamCard {...exam} />
+                        {docs.map((doc, index) => (
+                            <div key={doc.id} className={index >= 4 ? "hidden md:block" : ""}>
+                                <DocsCard {...doc} />
                             </div>
                         ))}
 
@@ -46,12 +47,12 @@ export default function NewExam() {
                 </div>
 
                 {/* Button */}
-                <div className="mt-6 md:mt-[24px] flex justify-center">
-
-                    <Button className="rounded-full bg-[#FFE96F] text-[#004EDC] font-bold px-4 py-2 text-sm md:text-base hover:bg-[#FFD600]">
-                        Xem tất cả
-                    </Button>
-
+                <div className="mt-8 md:mt-[36px] flex justify-center">
+                    <Link href="/documents">
+                        <Button className="rounded-full bg-[#FFE96F] text-[#004EDC] font-bold px-6 py-2 md:px-8 md:py-[22px] text-sm md:text-base hover:bg-[#FFD600]">
+                            Xem tất cả
+                        </Button>
+                    </Link>
                 </div>
 
             </div>

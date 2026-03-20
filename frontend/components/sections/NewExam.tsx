@@ -2,13 +2,14 @@
 
 import ExamCard from "@/components/exam/ExamCard";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const exams = Array(8).fill({
     title: "ĐỀ ÔN LUYỆN SỐ 1",
     subject: "Toán học",
     duration: "90 phút",
     image: "/carddethi.png",
-});
+}).map((e, index) => ({ ...e, id: index + 1 }));
 
 export default function NewExam() {
     return (
@@ -31,7 +32,7 @@ export default function NewExam() {
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 lg:gap-8">
                         {exams.map((exam, index) => (
                             <div
-                                key={index}
+                                key={exam.id}
                                 className={index >= 6 ? "hidden lg:block" : index >= 4 ? "hidden md:block" : ""}>
                                 <ExamCard {...exam} />
                             </div>
@@ -41,9 +42,11 @@ export default function NewExam() {
 
                 {/* Button */}
                 <div className="mt-5 sm:mt-6 md:mt-[24px] flex justify-center">
-                    <Button className="rounded-full bg-[#FFE96F] text-[#004EDC] font-bold text-sm sm:text-base px-5 py-2 sm:px-6 sm:py-2.5 hover:bg-[#FFD600] transition-colors">
-                        Xem tất cả
-                    </Button>
+                    <Link href="/exams">
+                        <Button className="rounded-full bg-[#FFE96F] text-[#004EDC] font-bold text-sm sm:text-base px-6 py-2 sm:px-8 sm:py-[22px] hover:bg-[#FFD600] transition-colors">
+                            Xem tất cả
+                        </Button>
+                    </Link>
                 </div>
 
             </div>
