@@ -7,12 +7,15 @@ import (
 	"net/http"
 
 	"backend/config" // LƯU Ý: Thay chữ "backend" bằng tên module trong file go.mod của team bạn
+	"backend/routes"
 )
 
 func main() {
 	// Kích hoạt kết nối Database Neon
 	// Lưu ý: Biến môi trường DATABASE_URL do Docker load qua env_file trong docker-compose.yml
 	config.ConnectDatabase()
+
+	routes.SetupRoutes()
 
 	// API Health check
 	http.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
