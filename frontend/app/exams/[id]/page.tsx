@@ -14,12 +14,12 @@ export default async function ExamInfoPage({
     const examDuration = "90 phút";
 
     return (
-        <main className="min-h-screen bg-white flex flex-col mx-auto max-w-[1920px] font-roboto">
+        <main className="min-h-screen bg-white flex flex-col w-full font-roboto">
             <Header />
 
             {/* Main Content Area from Figma */}
-            <div className="bg-[#F6FBFF] w-full overflow-hidden flex justify-center py-12 px-4 shadow-sm border-t border-blue-50 flex-grow">
-                <div className="w-full max-w-[1248px] grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 justify-center">
+            <div className="bg-[#F6FBFF] w-full overflow-hidden py-12 shadow-sm border-t border-blue-50 flex-grow">
+                <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px] grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8">
 
                     {/* Left side: Exam Info */}
                     <div className="w-full overflow-hidden flex flex-col items-start gap-12">
