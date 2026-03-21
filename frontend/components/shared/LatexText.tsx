@@ -48,5 +48,5 @@ export function LatexText({ content }: LatexTextProps) {
     return els;
   }, [content]);
 
-  return <span className="leading-relaxed whitespace-pre-line">{elements}</span>;
+  return <div className="leading-relaxed whitespace-pre-line inline">{elements}</div>;
 }
