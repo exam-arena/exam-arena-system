@@ -31,10 +31,10 @@ export function ExamLayout({ header, content, sidebar, bottomBar }: ExamLayoutPr
 
                     {/* Box 3: Bottom navigation (fixed bottom) */}
                     <div className="shrink-0">
-                        {React.isValidElement(bottomBar) 
-                            ? React.cloneElement(bottomBar as React.ReactElement<any>, { 
-                                onOpenMenu: () => setIsMenuOpen(true) 
-                              })
+                        {React.isValidElement(bottomBar)
+                            ? React.cloneElement(bottomBar as React.ReactElement<any>, {
+                                onOpenMenu: () => setIsMenuOpen(true)
+                            })
                             : bottomBar
                         }
                     </div>
