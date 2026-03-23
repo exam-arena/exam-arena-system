@@ -129,7 +129,7 @@ func RegisterUser(input RegisterInput) error {
 func LoginUser(input LoginInput) (*LoginResponse, error) {
 
 	// ===== 1. Normalize =====
-	identifier := strings.TrimSpace(strings.ToLower(input.Identifier))
+	identifier := strings.TrimSpace(input.Identifier) 
 	password := input.Password //  KHÔNG TRIM
 
 	if identifier == "" || password == "" {
