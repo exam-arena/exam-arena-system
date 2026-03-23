@@ -68,12 +68,9 @@ export default async function ExamResultPage({
                                     <div className="rounded-[30px] border border-transparent bg-[#e7f0ff] text-[#0050e2] py-[0.5rem] px-[1.25rem] text-[1rem] leading-[1.75rem] font-bold flex items-center justify-center">
                                         Kết quả đề thi
                                     </div>
-                                    <Link href={`/exams/${id}`} className="rounded-[30px] border border-[#92b8ff] bg-white text-[#92b8ff] hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-[0.5rem] px-[1.25rem] text-[1rem] leading-[1.75rem] font-normal flex items-center justify-center">
+                                    <Link href={`/attempts/${id}/review`} className="rounded-[30px] border border-[#92b8ff] bg-white text-[#92b8ff] hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-[0.5rem] px-[1.25rem] text-[1rem] leading-[1.75rem] font-normal flex items-center justify-center">
                                         Đáp án tham khảo
                                     </Link>
-                                    <div className="rounded-[30px] border border-[#92b8ff] bg-white text-[#92b8ff] transition-colors py-[0.5rem] px-[1.25rem] text-[1rem] leading-[1.75rem] font-normal flex items-center justify-center cursor-not-allowed opacity-70">
-                                        Lịch sử làm bài
-                                    </div>
                                 </div>
                             </div>
                         </div>
