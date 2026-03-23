@@ -8,7 +8,7 @@ interface QuestionNavigatorProps {
     onSelect?: (index: number) => void;
 }
 
-export function QuestionNavigator({ total, answered, bookmarked = [], currentIndex = 0, onSelect }: QuestionNavigatorProps) {
+export function QuestionNavigator({ total, answered, bookmarked = [], currentIndex = 0, onSelect, mode = "exam", results }: QuestionNavigatorProps & { mode?: "exam" | "review", results?: Record<number, boolean> }) {
     const items = Array.from({ length: total }, (_, i) => i + 1);
     return (
         <div className="grid grid-cols-5 gap-2">
@@ -18,13 +18,24 @@ export function QuestionNavigator({ total, answered, bookmarked = [], currentInd
                 const isFlagged = bookmarked.includes(num);
 
                 let btnClass = "bg-cornflowerblue-200 border-cornflowerblue-200 border-solid text-mediumslateblue hover:bg-mediumslateblue/10 font-normal";
-                if (isActive) {
-                    btnClass = "border-mediumslateblue bg-mediumslateblue/10 text-mediumslateblue font-bold ring-2 ring-mediumslateblue/50 ring-offset-1";
-                }
-                if (isAnswered) {
+                if (mode === "review" && results && results[num] !== undefined) {
+                    if (results[num] === false) {
+                        btnClass = "bg-red-500 text-white font-bold border-red-500 ring-2 ring-red-500/50 ring-offset-1";
+                    } else if (results[num] === true) {
+                        btnClass = "bg-green-500 text-white font-bold border-green-500 ring-2 ring-green-500/50 ring-offset-1";
+                    }
+                } else if (isAnswered) {
                     btnClass = "bg-mediumslateblue text-white font-bold border-mediumslateblue";
-                    if (isActive) {
-                        btnClass += " ring-2 ring-mediumslateblue/50 ring-offset-2";
+                }
+
+                if (isActive) {
+                    if (mode === "review" && results && results[num] !== undefined) {
+                        // Already handled ring above
+                    } else {
+                        btnClass = "border-mediumslateblue bg-mediumslateblue/10 text-mediumslateblue font-bold ring-2 ring-mediumslateblue/50 ring-offset-1";
+                        if (isAnswered || (mode === "review" && results?.[num] === true)) {
+                            btnClass = "bg-mediumslateblue text-white font-bold border-mediumslateblue ring-2 ring-mediumslateblue/50 ring-offset-1";
+                        }
                     }
                 }
 
