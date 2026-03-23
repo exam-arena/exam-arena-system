@@ -1,14 +1,27 @@
 package utils
 
 import (
+	"backend/models"
+	"log"
 	"os"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
-	"backend/models"
 )
 
+// Gây lỗi JWT rỗng (khi chạy docker bị ghi đè do dùng lệnh os?)
 // Khóa bí mật để ký Token (Nên để trong file .env)
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+// var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+
+var jwtKey []byte
+
+func InitJWT() {
+	key := os.Getenv("JWT_SECRET")
+	if key == "" {
+		log.Fatal("JWT_SECRET is not set")
+	}
+	jwtKey = []byte(key)
+}
 
 type Claims struct {
 	UserID string `json:"user_id"`
@@ -29,4 +42,5 @@ func GenerateJWT(user *models.User) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
+	// return token.SignedString(getJWTKey()) // Luôn gọi os => Không ổn cho chương trình cần chịu tải lớn 
 }

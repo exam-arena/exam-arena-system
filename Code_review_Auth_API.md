@@ -12,14 +12,14 @@
 
 ### Đánh giá tổng thể
 
-| Tiêu chí | Đánh giá | Chi tiết |
-|----------|---------|----------|
-| **Phân tầng kiến trúc** | ✅ Tốt | Controller → Service → Repository đúng chuẩn |
-| **Clean Code** | ✅ Tốt | Code clean, dễ đọc, đặt tên hợp lý |
-| **Validation** | ⚠️ Cần cải thiện | Có nhưng còn thiếu vài điểm |
-| **Bảo mật** | 🔴 Cần khắc phục | JWT Secret bị khởi tạo sai, thiếu middleware |
-| **Chịu tải cao (CCU)** | 🔴 Cần khắc phục | Thiếu connection pooling, rate limiting, CORS |
-| **Tuân thủ Architecture Doc** | ⚠️ Một phần | Route path thiếu `/v1/`, port không khớp |
+| Tiêu chí                      | Đánh giá         | Chi tiết                                      |
+| ----------------------------- | ---------------- | --------------------------------------------- |
+| **Phân tầng kiến trúc**       | ✅ Tốt           | Controller → Service → Repository đúng chuẩn  |
+| **Clean Code**                | ✅ Tốt           | Code clean, dễ đọc, đặt tên hợp lý            |
+| **Validation**                | ⚠️ Cần cải thiện | Có nhưng còn thiếu vài điểm                   |
+| **Bảo mật**                   | 🔴 Cần khắc phục | JWT Secret bị khởi tạo sai, thiếu middleware  |
+| **Chịu tải cao (CCU)**        | 🔴 Cần khắc phục | Thiếu connection pooling, rate limiting, CORS |
+| **Tuân thủ Architecture Doc** | ⚠️ Một phần      | Route path thiếu `/v1/`, port không khớp      |
 
 ---
 
@@ -66,6 +66,7 @@ var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 > Architecture doc yêu cầu `auth_middleware.go` để verify JWT cho các route protected. Hiện tại **thư mục rỗng**, nghĩa là không có endpoint nào được bảo vệ. Endpoint `/api/v1/auth/me` (GET user info) cũng chưa tồn tại.
 
 **Cần tạo:**
+
 - `middlewares/auth_middleware.go` – Verify JWT, extract `userID` + `role` vào `context`
 - `middlewares/cors_middleware.go` – CORS handling
 - [utils/jwt.go](file:///d:/exam-arena-system/backend/utils/jwt.go) cần thêm hàm `ParseJWT(tokenString) (*Claims, error)`
@@ -99,11 +100,11 @@ func CORSMiddleware(next http.Handler) http.Handler {
 
 **File:** [route.go](file:///d:/exam-arena-system/backend/routes/route.go)
 
-| Hiện tại | Architecture Doc | Vấn đề |
-|----------|-----------------|---------|
-| `/api/auth/register` | `/api/v1/auth/register` | Thiếu prefix `/v1/` |
-| `/api/auth/login` | `/api/v1/auth/login` | Thiếu prefix `/v1/` |
-| Không có | `/api/v1/auth/me` | Endpoint chưa implement |
+| Hiện tại             | Architecture Doc        | Vấn đề                  |
+| -------------------- | ----------------------- | ----------------------- |
+| `/api/auth/register` | `/api/v1/auth/register` | Thiếu prefix `/v1/`     |
+| `/api/auth/login`    | `/api/v1/auth/login`    | Thiếu prefix `/v1/`     |
+| Không có             | `/api/v1/auth/me`       | Endpoint chưa implement |
 
 > [!IMPORTANT]
 > Thiếu `/v1/` sẽ gây khó khăn khi cần versioning API sau này. Nên sửa để khớp doc ngay từ đầu.
@@ -330,6 +331,7 @@ func GetUserByEmail(email string) (*models.User, error) {
 **Fix (chọn 1 trong 2):**
 
 **Option A (recommend):** Đổi model sang `gorm.DeletedAt`:
+
 ```go
 import "gorm.io/gorm"
 
@@ -340,6 +342,7 @@ type User struct {
 ```
 
 **Option B:** Thêm manual filter:
+
 ```go
 config.DB.Where("email = ? AND deleted_at IS NULL", email).First(&user)
 ```
@@ -373,11 +376,11 @@ srv.Shutdown(ctx)
 
 ### 15. Port mismatch giữa main.go ↔ docker-compose.yml
 
-| Nơi | Port |
-|-----|------|
-| [main.go](file:///d:/exam-arena-system/backend/main.go) | `:8080` |
+| Nơi                                                                   | Port                         |
+| --------------------------------------------------------------------- | ---------------------------- |
+| [main.go](file:///d:/exam-arena-system/backend/main.go)               | `:8080`                      |
 | [docker-compose.yml](file:///d:/exam-arena-system/docker-compose.yml) | `8081:8080` (host:container) |
-| Architecture doc | Backend port: `8081` |
+| Architecture doc                                                      | Backend port: `8081`         |
 
 Port mapping **hoạt động đúng** (Docker maps 8081→8080), nhưng nên thống nhất: dùng env var `API_PORT` từ [.env](file:///d:/exam-arena-system/.env) thay vì hardcode.
 
@@ -385,37 +388,37 @@ Port mapping **hoạt động đúng** (Docker maps 8081→8080), nhưng nên th
 
 ## ✅ ĐIỂM TỐT (Đã làm đúng)
 
-| # | Điểm | Đánh giá |
-|---|------|----------|
-| 1 | **Phân tầng kiến trúc** đúng chuẩn Layered Architecture | ⭐⭐⭐ |
-| 2 | **Error handling** tách biệt: sentinel errors trong service, HTTP mapping trong controller | ⭐⭐⭐ |
-| 3 | **Bcrypt cost = 12** – phù hợp production | ⭐⭐⭐ |
-| 4 | **Identifier login** (email HOẶC username) – UX tốt | ⭐⭐⭐ |
-| 5 | **Input normalization** (TrimSpace, ToLower email) | ⭐⭐ |
-| 6 | **Không phân biệt** "user not found" vs "wrong password" → chống enumeration attack | ⭐⭐⭐ |
-| 7 | **Tách riêng** [IsEmailExists](file:///d:/exam-arena-system/backend/repositories/user_repository.go#65-79) / [IsUsernameExists](file:///d:/exam-arena-system/backend/repositories/user_repository.go#80-94) checks | ⭐⭐ |
-| 8 | **UUID primary key** với `gen_random_uuid()` | ⭐⭐⭐ |
+| #   | Điểm                                                                                                                                                                                                               | Đánh giá |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| 1   | **Phân tầng kiến trúc** đúng chuẩn Layered Architecture                                                                                                                                                            | ⭐⭐⭐   |
+| 2   | **Error handling** tách biệt: sentinel errors trong service, HTTP mapping trong controller                                                                                                                         | ⭐⭐⭐   |
+| 3   | **Bcrypt cost = 12** – phù hợp production                                                                                                                                                                          | ⭐⭐⭐   |
+| 4   | **Identifier login** (email HOẶC username) – UX tốt                                                                                                                                                                | ⭐⭐⭐   |
+| 5   | **Input normalization** (TrimSpace, ToLower email)                                                                                                                                                                 | ⭐⭐     |
+| 6   | **Không phân biệt** "user not found" vs "wrong password" → chống enumeration attack                                                                                                                                | ⭐⭐⭐   |
+| 7   | **Tách riêng** [IsEmailExists](file:///d:/exam-arena-system/backend/repositories/user_repository.go#65-79) / [IsUsernameExists](file:///d:/exam-arena-system/backend/repositories/user_repository.go#80-94) checks | ⭐⭐     |
+| 8   | **UUID primary key** với `gen_random_uuid()`                                                                                                                                                                       | ⭐⭐⭐   |
 
 ---
 
 ## 📋 Bảng tổng kết ưu tiên sửa
 
-| # | Vấn đề | Mức độ | Ảnh hưởng CCU |
-|---|--------|--------|---------------|
-| 1 | JWT Secret rỗng | 🔴 Critical | Token có thể bị forge |
-| 2 | Thiếu Auth Middleware | 🔴 Critical | Không bảo vệ route |
-| 3 | Thiếu CORS | 🔴 Critical | Frontend không gọi được API |
-| 4 | Route thiếu `/v1/` | 🔴 Critical | Không khớp architecture |
-| 5 | Thiếu Connection Pooling | ⚠️ High | DB crash khi >100 CCU |
-| 6 | Password TrimSpace | ⚠️ High | User bị khóa ngoài |
-| 7 | Model thiếu `json:"-"` | ⚠️ High | Leak password hash |
-| 8 | Soft Delete chưa filter | ⚠️ High | Deleted user vẫn login được |
-| 9 | Response format chưa chuẩn | 💡 Medium | Frontend khó xử lý |
-| 10 | Login thiếu user info | 💡 Medium | Thêm 1 request không cần thiết |
-| 11 | Password validation yếu | 💡 Medium | Bảo mật yếu |
-| 12 | Method check thủ công | 💡 Medium | Code dư thừa |
-| 13 | Graceful shutdown | 💡 Medium | Request bị mất khi deploy |
-| 14 | Struct-based repository | 💡 Low | Không testable |
+| #   | Vấn đề                     | Mức độ      | Ảnh hưởng CCU                  |
+| --- | -------------------------- | ----------- | ------------------------------ | ------------------------------------- | ---- |
+| 1   | JWT Secret rỗng            | 🔴 Critical | Token có thể bị forge          | Done                                  |
+| 2   | Thiếu Auth Middleware      | 🔴 Critical | Không bảo vệ route             | Chưa xét                              |
+| 3   | Thiếu CORS                 | 🔴 Critical | Frontend không gọi được API    | Chưa xét                              |
+| 4   | Route thiếu `/v1/`         | 🔴 Critical | Không khớp architecture        | Done                                  |
+| 5   | Thiếu Connection Pooling   | ⚠️ High     | DB crash khi >100 CCU          | Cache xử lý 90%, DB chỉ xử lý 10%     | Done |
+| 6   | Password TrimSpace         | ⚠️ High     | User bị khóa ngoài             | Done                                  |
+| 7   | Model thiếu `json:"-"`     | ⚠️ High     | Leak password hash             | Done                                  |
+| 8   | Soft Delete chưa filter    | ⚠️ High     | Deleted user vẫn login được    | Sửa sau -> chuyển sang gorm.DeletedAt |
+| 9   | Response format chưa chuẩn | 💡 Medium   | Frontend khó xử lý             | Done                                  |
+| 10  | Login thiếu user info      | 💡 Medium   | Thêm 1 request không cần thiết | Done                                  |
+| 11  | Password validation yếu    | 💡 Medium   | Bảo mật yếu                    | Done                                  |
+| 12  | Method check thủ công      | 💡 Medium   | Code dư thừa                   | Sửa sau                               |
+| 13  | Graceful shutdown          | 💡 Medium   | Request bị mất khi deploy      | Done                                  |
+| 14  | Struct-based repository    | 💡 Low      | Không testable                 |
 
 ---
 

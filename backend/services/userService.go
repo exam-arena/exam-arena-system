@@ -9,7 +9,8 @@ import (
 	"backend/utils"
 )
 
-// 🎯 Struct nhận từ controller
+// ================== INPUT ==================
+
 type RegisterInput struct {
 	Username string
 	Email    string
@@ -17,34 +18,49 @@ type RegisterInput struct {
 	Fullname string
 }
 
-// 🎯 Input login (email hoặc username)
 type LoginInput struct {
-	Identifier string
-	Password   string
+	Identifier    string
+	Password string
 }
 
-// 🎯 Response login
+// ================== RESPONSE ==================
+
 type LoginResponse struct {
-	Token string
+	Token string       `json:"token"`
+	User  UserResponse `json:"user"`
 }
 
-// 🎯 Custom errors (chuẩn hơn cho production)
+type UserResponse struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Fullname string `json:"fullname"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+}
+
+// ================== ERRORS ==================
+
 var (
-	ErrMissingFields   = errors.New("missing required fields")
-	ErrInvalidEmail    = errors.New("invalid email format")
-	ErrInvalidPassword = errors.New("password must be at least 6 characters")
-	ErrInvalidUsername = errors.New("invalid username")
-	ErrEmailExists     = errors.New("email already exists")
-	ErrUsernameExists  = errors.New("username already exists")
+	ErrMissingFields    = errors.New("missing required fields")
+	ErrInvalidEmail     = errors.New("invalid email format")
+	ErrInvalidPassword  = errors.New("password must be at least 8 characters and include uppercase, lowercase, and number")
+	ErrInvalidUsername  = errors.New("invalid username")
+	ErrInvalidFullname  = errors.New("invalid fullname")
+	ErrEmailExists      = errors.New("email already exists")
+	ErrUsernameExists   = errors.New("username already exists")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInternal         = errors.New("internal error")
 )
 
-// ✅ Service đăng ký user
+// ================== REGISTER ==================
+
 func RegisterUser(input RegisterInput) error {
 
 	// ===== 1. Normalize =====
 	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
 	input.Username = strings.TrimSpace(input.Username)
 	input.Fullname = strings.TrimSpace(input.Fullname)
+	// ❗ KHÔNG TRIM PASSWORD
 
 	// ===== 2. Validate =====
 	if input.Email == "" || input.Password == "" || input.Username == "" || input.Fullname == "" {
@@ -64,13 +80,13 @@ func RegisterUser(input RegisterInput) error {
 	}
 
 	if !utils.IsValidFullname(input.Fullname) {
-		return errors.New("invalid fullname")
+		return ErrInvalidFullname
 	}
 
 	// ===== 3. Check email tồn tại =====
 	emailExists, err := repositories.IsEmailExists(input.Email)
 	if err != nil {
-		return err
+		return ErrInternal
 	}
 	if emailExists {
 		return ErrEmailExists
@@ -79,7 +95,7 @@ func RegisterUser(input RegisterInput) error {
 	// ===== 4. Check username tồn tại =====
 	usernameExists, err := repositories.IsUsernameExists(input.Username)
 	if err != nil {
-		return err
+		return ErrInternal
 	}
 	if usernameExists {
 		return ErrUsernameExists
@@ -88,7 +104,7 @@ func RegisterUser(input RegisterInput) error {
 	// ===== 5. Hash password =====
 	hashedPassword, err := utils.HashPassword(input.Password)
 	if err != nil {
-		return err
+		return ErrInternal
 	}
 
 	// ===== 6. Tạo user =====
@@ -102,19 +118,19 @@ func RegisterUser(input RegisterInput) error {
 
 	// ===== 7. Lưu DB =====
 	if err := repositories.CreateUser(&user); err != nil {
-		return err
+		return ErrInternal
 	}
+
 	return nil
 }
 
-var ErrInvalidCredentials = errors.New("invalid credentials")
+// ================== LOGIN ==================
 
-// ✅ Service login
 func LoginUser(input LoginInput) (*LoginResponse, error) {
 
 	// ===== 1. Normalize =====
-	identifier := strings.TrimSpace(input.Identifier)
-	password := strings.TrimSpace(input.Password)
+	identifier := strings.TrimSpace(strings.ToLower(input.Identifier))
+	password := input.Password //  KHÔNG TRIM
 
 	if identifier == "" || password == "" {
 		return nil, ErrMissingFields
@@ -123,10 +139,10 @@ func LoginUser(input LoginInput) (*LoginResponse, error) {
 	// ===== 2. Tìm user =====
 	user, err := repositories.GetUserByIdentifier(identifier)
 	if err != nil {
-		return nil, err
+		return nil, ErrInternal
 	}
 
-	// 👉 QUAN TRỌNG: không phân biệt user tồn tại hay không
+	// Không leak info
 	if user == nil {
 		return nil, ErrInvalidCredentials
 	}
@@ -139,11 +155,18 @@ func LoginUser(input LoginInput) (*LoginResponse, error) {
 	// ===== 4. Generate JWT =====
 	token, err := utils.GenerateJWT(user)
 	if err != nil {
-		return nil, err
+		return nil, ErrInternal
 	}
 
+	// ===== 5. Return đúng contract =====
 	return &LoginResponse{
 		Token: token,
+		User: UserResponse{
+			UserID:   user.UserID,
+			Username: user.Username,
+			Fullname: user.Fullname,
+			Email:    user.Email,
+			Role:     user.Role,
+		},
 	}, nil
 }
-
