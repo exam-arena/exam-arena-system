@@ -1,25 +1,53 @@
-// file: main.go
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"backend/config" // LƯU Ý: Thay chữ "backend" bằng tên module trong file go.mod của team bạn
+	"backend/config"
+	"backend/routes"
+	"backend/utils"
 )
 
 func main() {
-	// Kích hoạt kết nối Database Neon
-	// Lưu ý: Biến môi trường DATABASE_URL do Docker load qua env_file trong docker-compose.yml
+	// ===== Init =====
+	utils.InitJWT()
 	config.ConnectDatabase()
+	routes.SetupRoutes()
 
-	// API Health check
-	http.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Backend Golang is running in Docker! _ You are apple of my eyes")
-	})
+	// ===== Tạo server =====
+	server := &http.Server{
+		Addr: ":8080",
+	}
 
-	// Khởi động server
-	fmt.Println("🚀 Server Golang started on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// ===== Run server (goroutine) =====
+	go func() {
+		fmt.Println("🚀 Server Golang started on port 8080...")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("❌ Listen error:", err)
+		}
+	}()
+
+	// ===== Lắng nghe signal từ OS (Docker, Ctrl+C) =====
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit // ⏳ chờ tín hiệu
+	fmt.Println("🛑 Shutting down server...")
+
+	// ===== Cho phép xử lý request còn lại trong 10s =====
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatal("❌ Forced shutdown:", err)
+	}
+
+	fmt.Println("✅ Server exited gracefully")
 }
