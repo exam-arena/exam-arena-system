@@ -401,14 +401,14 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 ```json
 {
-  "email": "a@student.edu.vn",
+  "identifier": "a@student.edu.vn",
   "password": "M@tkhau123"
 }
 ```
 
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
-| `email` | string | ✅ | Email hợp lệ |
+| `identifier` | string | ✅ | Email hoặc username hợp lệ |
 | `password` | string | ✅ | Không rỗng |
 
 **Success Response (200):**
@@ -421,6 +421,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
     "user": {
       "user_id": "a83e3d8f-...",
       "fullname": "Nguyễn Văn A",
+      "username": "nguyenvana",
       "email": "a@student.edu.vn",
       "role": "student"
     }
@@ -432,7 +433,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 | HTTP | Code | Khi nào |
 |------|------|---------|
-| 401 | `INVALID_CREDENTIALS` | Sai email hoặc password |
+| 401 | `INVALID_CREDENTIALS` | Sai identifier hoặc password |
 | 422 | `VALIDATION_FAILED` | Thiếu field bắt buộc |
 
 ---
