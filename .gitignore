@@ -2,6 +2,8 @@ node_modules/
 frontend/node_modules/
 frontend/.next/
 backend/tmp/
+.cache/
+.cache/go-build/
 .env
 .DS_Store
 .agent/
