@@ -450,7 +450,7 @@ CREATE TABLE exam (
 ```sql
 CREATE TABLE exam_section (
     section_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    exam_id UUID REFERENCES exam(exam_id) ON DELETE CASCADE,
+    exam_id UUID NOT NULL REFERENCES exam(exam_id) ON DELETE CASCADE,
     title VARCHAR(150) NOT NULL,
     duration INT                                    -- thời gian phần thi (giây)
 );
@@ -461,7 +461,7 @@ CREATE TABLE exam_section (
 ```sql
 CREATE TABLE question (
     question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    section_id UUID REFERENCES exam_section(section_id) ON DELETE CASCADE,
+    section_id UUID NOT NULL REFERENCES exam_section(section_id) ON DELETE CASCADE,
     parent_id UUID REFERENCES question(question_id) ON DELETE CASCADE,  -- phân cấp
     content TEXT NOT NULL,                          -- nội dung câu hỏi (hỗ trợ LaTeX)
     image_url VARCHAR(255),                         -- ảnh tùy chọn cho câu hỏi
@@ -757,7 +757,8 @@ ALTER TABLE user_room_access
 
 ```sql
 -- Được xác định trong định nghĩa bảng:
-exam_id UUID REFERENCES exam(exam_id) ON DELETE CASCADE
+exam_id UUID NOT NULL REFERENCES exam(exam_id) ON DELETE CASCADE
+section_id UUID NOT NULL REFERENCES exam_section(section_id) ON DELETE CASCADE
 question_id UUID REFERENCES question(question_id) ON DELETE RESTRICT
 ```
 

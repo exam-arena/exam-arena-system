@@ -79,14 +79,14 @@ CREATE TABLE exam (
 
 CREATE TABLE exam_section (
     section_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    exam_id UUID REFERENCES exam(exam_id) ON DELETE CASCADE,
+    exam_id UUID NOT NULL REFERENCES exam(exam_id) ON DELETE CASCADE,
     title VARCHAR(150) NOT NULL,
     duration INT 
 );
 
 CREATE TABLE question (
     question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    section_id UUID REFERENCES exam_section(section_id) ON DELETE CASCADE,
+    section_id UUID NOT NULL REFERENCES exam_section(section_id) ON DELETE CASCADE,
     parent_id UUID REFERENCES question(question_id) ON DELETE CASCADE, 
     content TEXT NOT NULL,
     image_url VARCHAR(255), -- Đã bổ sung theo ERD
