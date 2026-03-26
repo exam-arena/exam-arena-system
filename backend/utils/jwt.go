@@ -24,8 +24,7 @@ func InitJWT() {
 }
 
 type Claims struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"`
+	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -33,14 +32,15 @@ type Claims struct {
 func GenerateJWT(user *models.User) (string, error) {
 	expirationTime := time.Now().Add(2 * time.Hour) // Token có hạn 2h
 	claims := &Claims{
-		UserID: user.UserID,
-		Role:   user.Role,
+		Role: user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.UserID,
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtKey)
-	// return token.SignedString(getJWTKey()) // Luôn gọi os => Không ổn cho chương trình cần chịu tải lớn 
+	// return token.SignedString(getJWTKey()) // Luôn gọi os => Không ổn cho chương trình cần chịu tải lớn
 }
