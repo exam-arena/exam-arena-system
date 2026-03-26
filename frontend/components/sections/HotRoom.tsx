@@ -4,17 +4,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay } from "swiper/modules";
 import "swiper/swiper-bundle.css";
 import RoomCard from "@/components/room/RoomCard";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-
-const mockRooms = Array(6).fill({
-    title: "PHÒNG THI THỬ TOÁN THPTQG",
-    subtitle: "Lớp 12 luyện thi đại học",
-    capacity: "504/1000",
-    target: "Tất cả",
-    status: "Đang mở",
-    type: "Trực tuyến",
-}).map((room, i) => ({ ...room, id: i + 1 }));
+import mockData from "@/data.json";
 
 export default function HotExam() {
     return (
@@ -54,8 +44,8 @@ export default function HotExam() {
                             1024: { slidesPerView: 3 },
                         }}
                     >
-                        {mockRooms.map((room) => (
-                            <SwiperSlide key={room.id} className="pb-12">
+                        {mockData.exam_rooms.map((room) => (
+                            <SwiperSlide key={room.room_id} className="pb-12">
                                 <RoomCard {...room} />
                             </SwiperSlide>
                         ))}

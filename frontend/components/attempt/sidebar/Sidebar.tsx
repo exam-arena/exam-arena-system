@@ -15,8 +15,8 @@ interface SidebarProps {
     user?: {
         name: string;
         fullName: string;
-        grade: string;
-        target: string;
+        email: string;
+        role: string;
         avatarUrl?: string;
     };
 }
@@ -30,10 +30,10 @@ export function Sidebar({
     onSelectQuestion,
     onSubmit,
     user = {
-        name: "User 1",
-        fullName: "Hà Trọng Thắng",
-        grade: "Lớp 12",
-        target: "8.5/10",
+        name: "student01",
+        fullName: "Lê Hoàng An",
+        email: "student1@examarena.local",
+        role: "student",
     },
     mode = "exam",
     results

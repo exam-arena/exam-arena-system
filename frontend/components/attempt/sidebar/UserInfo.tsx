@@ -4,21 +4,21 @@ import Image from "next/image";
 interface UserInfoProps {
   name: string;
   fullName: string;
-  grade: string;
-  target: string;
-  avatarUrl?: string; // e.g: '/placeholders/avatar.png'
+  email: string;
+  role: string;
+  avatarUrl?: string;
 }
 
-export function UserInfo({ name, fullName, grade, target, avatarUrl }: UserInfoProps) {
+export function UserInfo({ name, fullName, email, role, avatarUrl }: UserInfoProps) {
   return (
     <div className="flex flex-col items-center gap-6 w-full">
       <div className="flex flex-col items-center gap-3 w-full">
         <b className="text-base font-bold text-mediumslateblue">Thông tin thí sinh</b>
         <div className="relative w-20 h-20 rounded-full overflow-hidden bg-cornflowerblue-200 flex items-center justify-center">
           {avatarUrl ? (
-            <Image 
-              src={avatarUrl} 
-              alt={name} 
+            <Image
+              src={avatarUrl}
+              alt={name}
               fill
               className="object-cover"
               sizes="80px"
@@ -34,10 +34,10 @@ export function UserInfo({ name, fullName, grade, target, avatarUrl }: UserInfoP
           <b>Họ và tên: </b><span>{fullName}</span>
         </div>
         <div>
-          <b>Trình độ: </b><span>{grade}</span>
+          <b>Email: </b><span className="truncate max-w-[150px] inline-block align-bottom" title={email}>{email}</span>
         </div>
         <div>
-          <b>Điểm mục tiêu: </b><span>{target}</span>
+          <b>Vai trò: </b><span className="capitalize">{role === 'student' ? 'Học sinh' : 'Quản trị viên'}</span>
         </div>
       </div>
     </div>
