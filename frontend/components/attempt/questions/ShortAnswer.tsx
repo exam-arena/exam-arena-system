@@ -6,9 +6,11 @@ interface ShortAnswerProps {
     name?: string;
     value?: string;
     onChange?: (val: string) => void;
+    mode?: "exam" | "review";
+    correctAnswer?: string;
 }
 
-export function ShortAnswer({ name, value = "", onChange }: ShortAnswerProps) {
+export function ShortAnswer({ name, value = "", onChange, mode = "exam", correctAnswer }: ShortAnswerProps) {
     const chars = value.padEnd(4, "").slice(0, 4).split("");
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -45,19 +47,34 @@ export function ShortAnswer({ name, value = "", onChange }: ShortAnswerProps) {
         <div className="flex flex-col gap-3 w-full">
             <b className="text-base leading-[1.75rem] text-mediumslateblue font-bold">Câu trả lời:</b>
             <div className="flex gap-0" role="group" aria-label={name}>
-                {[0, 1, 2, 3].map((i) => (
-                    <input
-                        key={i}
-                        ref={(el) => { inputRefs.current[i] = el; }}
-                        type="text"
-                        inputMode="decimal"
-                        maxLength={1}
-                        value={chars[i]?.trim() || ""}
-                        onChange={(e) => handleChange(i, e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(i, e)}
-                        className="w-12 h-14 md:w-14 md:h-16 border border-cornflowerblue-100 text-center text-xl md:text-2xl font-bold text-mediumslateblue outline-none focus:border-mediumslateblue focus:ring-2 focus:ring-mediumslateblue/30 focus:z-10 transition-all bg-white first:rounded-l-lg last:rounded-r-lg -ml-px first:ml-0"
-                    />
-                ))}
+                {[0, 1, 2, 3].map((i) => {
+                    let bgClass = `bg-white text-mediumslateblue focus:border-mediumslateblue focus:ring-mediumslateblue/30 ${chars[i] ? "font-bold" : ""
+                        }`;
+                    if (mode === "review") {
+                        if (value === "") {
+                            bgClass = "bg-slate-50 text-slate-500 border-slate-200 focus:ring-0";
+                        } else if (value === correctAnswer) {
+                            bgClass = "bg-mediumslateblue text-white border-mediumslateblue font-bold";
+                        } else {
+                            bgClass = "bg-red-500 text-white border-red-500 font-bold";
+                        }
+                    }
+
+                    return (
+                        <input
+                            key={i}
+                            ref={(el) => { inputRefs.current[i] = el; }}
+                            type="text"
+                            inputMode="decimal"
+                            maxLength={1}
+                            value={chars[i]?.trim() || ""}
+                            onChange={(e) => mode !== "review" && handleChange(i, e.target.value)}
+                            onKeyDown={(e) => mode !== "review" && handleKeyDown(i, e)}
+                            disabled={mode === "review"}
+                            className={`w-12 h-14 md:w-14 md:h-16 border border-cornflowerblue-100 text-center text-xl md:text-2xl outline-none focus:ring-2 focus:z-10 transition-all first:rounded-l-lg last:rounded-r-lg -ml-px first:ml-0 ${bgClass}`}
+                        />
+                    );
+                })}
             </div>
         </div>
     );
