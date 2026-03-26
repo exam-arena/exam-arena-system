@@ -1,45 +1,59 @@
 package handlers
 
 import (
-	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
 	"backend/config"
 	"backend/middleware"
 	"backend/models"
+	"backend/utils"
+
+	"gorm.io/gorm"
 )
 
 // ProfileResponse is returned for the corner user display on the FE.
 type ProfileResponse struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	UserID   string `json:"user_id"`
+	Fullname string `json:"fullname"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+}
+
+func profileResponseFromUser(u models.User) ProfileResponse {
+	return ProfileResponse{
+		UserID:   u.UserID,
+		Fullname: u.Fullname,
+		Email:    u.Email,
+		Role:     u.Role,
+	}
 }
 
 // Profile loads the authenticated student's display name and email.
 // It must be used behind middleware.RequireAuth.
 func Profile(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
 		return
 	}
 
 	userID, ok := middleware.UserID(r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		utils.SendError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
 		return
 	}
 
 	var u models.User
-	if err := config.DB.Select("user_id", "fullname", "email").Where("user_id = ? AND deleted_at IS NULL", userID).First(&u).Error; err != nil {
+	if err := config.DB.Select("user_id", "fullname", "email", "role").Where("user_id = ? AND deleted_at IS NULL", userID).First(&u).Error; err != nil {
 		log.Printf("profile: load user %s: %v", userID, err)
-		http.Error(w, "not found", http.StatusNotFound)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.SendError(w, http.StatusNotFound, "NOT_FOUND", "User not found")
+			return
+		}
+		utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(ProfileResponse{
-		Name:  u.Fullname,
-		Email: u.Email,
-	})
+	utils.SendSuccess(w, profileResponseFromUser(u))
 }

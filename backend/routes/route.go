@@ -4,14 +4,13 @@ import (
 	"net/http"
 
 	"backend/controllers"
+	"backend/handlers"
+	"backend/middleware"
 )
 
-// ✅ Setup tất cả routes
+// SetupRoutes registers HTTP routes.
 func SetupRoutes() {
-
-	// ===== AUTH =====
 	http.HandleFunc("/api/v1/auth/register", controllers.Register)
-
-	// Sau này thêm:
-	http.HandleFunc("/api/v1/auth/login", controllers.Login)
+	http.HandleFunc("/api/v1/auth/login", middleware.LoginRateLimit(controllers.Login))
+	http.HandleFunc("/api/v1/auth/me", middleware.RequireAuth(handlers.Profile))
 }

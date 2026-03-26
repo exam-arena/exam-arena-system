@@ -23,7 +23,11 @@ func main() {
 
 	// ===== Tạo server =====
 	server := &http.Server{
-		Addr: ":8080",
+		Addr:              ":8080",
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	// ===== Run server (goroutine) =====
