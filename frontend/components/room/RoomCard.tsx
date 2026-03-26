@@ -5,32 +5,28 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-    Users,
-    User,
+    FileText,
+    CreditCard,
     Clock,
-    GraduationCap,
+    BookOpen,
 } from "lucide-react";
 
-type RoomCardProps = {
-    id?: string | number;
-    title: string;
-    subtitle?: string;
-    level?: string; // THPT
-    capacity: string; // 504/1000
-    target: string; // Tất cả
-    status: string; // Đang mở
-    type: string; // Trực tuyến
+export type RoomCardProps = {
+    room_id: string;
+    name: string;
+    type: string;
+    price: number;
+    test_quantity: number;
+    status: string;
 };
 
 export default function RoomCard({
-    id = 1,
-    title,
-    subtitle,
-    level = "THPT",
-    capacity,
-    target,
-    status,
+    room_id,
+    name,
     type,
+    price,
+    test_quantity,
+    status,
 }: RoomCardProps) {
     return (
         <Card className="rounded-3xl border-none shadow-md overflow-hidden bg-[#E5EEFF33]">
@@ -46,42 +42,28 @@ export default function RoomCard({
                     className="object-contain mb-2"
                 />
 
-                {/* Subtitle */}
-                {subtitle && (
-                    <p className="text-sm text-[#92B8FF] italic mb-2">
-                        {subtitle}
-                    </p>
-                )}
-
                 {/* Title */}
-                <h3 className="text-lg md:text-xl font-bold text-[#004EDC] mb-3">
-                    {title}
+                <h3 className="text-lg md:text-xl font-bold text-[#004EDC] mb-3 mt-4">
+                    {name}
                 </h3>
 
-                {/* Badge */}
-                <div className="mb-4">
-                    <span className="bg-[#EAF2FF] text-[#004EDC] text-xs px-3 py-1 rounded-full">
-                        {level}
-                    </span>
-                </div>
-
                 {/* Info list */}
-                <div className="space-y-3 text-sm text-[#004EDC]">
+                <div className="space-y-3 text-sm text-[#004EDC] mt-6">
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Users className="size-4 opacity-60" />
-                            <span>Sức chứa</span>
+                            <FileText className="size-4 opacity-60" />
+                            <span>Số lượng đề</span>
                         </div>
-                        <span>{capacity}</span>
+                        <span>{test_quantity} đề</span>
                     </div>
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <User className="size-4 opacity-60" />
-                            <span>Đối tượng</span>
+                            <CreditCard className="size-4 opacity-60" />
+                            <span>Giá</span>
                         </div>
-                        <span>{target}</span>
+                        <span>{price > 0 ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price) : 'Miễn phí'}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -89,22 +71,22 @@ export default function RoomCard({
                             <Clock className="size-4 opacity-60" />
                             <span>Trạng thái</span>
                         </div>
-                        <span>{status}</span>
+                        <span>{status === "active" ? "Đang mở" : "Đã đóng"}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <GraduationCap className="size-4 opacity-60" />
-                            <span>Hình thức</span>
+                            <BookOpen className="size-4 opacity-60" />
+                            <span>Loại phòng</span>
                         </div>
-                        <span>{type}</span>
+                        <span className="capitalize">{type.replace('_', ' ')}</span>
                     </div>
 
                 </div>
 
                 {/* Button */}
                 <div className="mt-6 flex justify-center">
-                    <Link href={`/rooms/${id}`}>
+                    <Link href={`/rooms/${room_id}`}>
                         <Button
                             variant="outline"
                             className="rounded-full border-[#004EDC] text-[#004EDC] px-6 hover:bg-[#004EDC] hover:text-white"
@@ -117,4 +99,5 @@ export default function RoomCard({
             </CardContent>
         </Card>
     );
+
 }

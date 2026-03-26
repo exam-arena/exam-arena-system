@@ -3,15 +3,19 @@ import Footer from "@/components/layout/Footer";
 import ExamCard from "@/components/exam/ExamCard";
 import CustomPagination from "@/components/shared/CustomPagination";
 import Banner from "@/components/sections/Banner";
+import data from "@/data.json";
 
-// Mock data
-const allMockExams = Array(32).fill(null).map((_, i) => ({
-    id: i + 1,
-    title: `ĐỀ ÔN LUYỆN TUYỂN CHỌN SỐ ${i + 1}`,
-    subject: "Toán học",
-    duration: "90 phút",
-    image: "/carddethi.png",
-}));
+// Hàm mock lấy danh sách đề thi (Sau này đổi thành fetch('/api/exams'))
+async function fetchExams(page: number, limit: number) {
+    const allExams = data.exams || [];
+    const totalItems = allExams.length;
+    
+    // Phân trang từ backend
+    const start = (page - 1) * limit;
+    const items = allExams.slice(start, start + limit);
+
+    return { items, totalItems };
+}
 
 export default async function ExamsPage({
     searchParams,
@@ -23,12 +27,10 @@ export default async function ExamsPage({
 
     const currentPage = parseInt(page || "1", 10);
     const itemsPerPage = 8;
-    const totalPages = Math.ceil(allMockExams.length / itemsPerPage);
-
-    const mockExams = allMockExams.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    
+    // Gọi "API" lấy dữ liệu
+    const { items: exams, totalItems } = await fetchExams(currentPage, itemsPerPage);
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
     return (
         <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
@@ -50,19 +52,27 @@ export default async function ExamsPage({
 
                     {/* Exams Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-                        {mockExams.map((exam) => (
-                            <ExamCard key={exam.id} {...exam} />
-                        ))}
+                        {exams.length > 0 ? (
+                            exams.map((exam) => (
+                                <ExamCard key={exam.exam_id} {...exam} image="/carddethi.png" />
+                            ))
+                        ) : (
+                            <div className="col-span-2 sm:col-span-2 lg:col-span-4 text-center py-10 text-gray-500 font-medium">
+                                Chưa có đề thi nào.
+                            </div>
+                        )}
                     </div>
 
                     {/* Pagination */}
-                    <div className="mt-10">
-                        <CustomPagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            basePath="/exams"
-                        />
-                    </div>
+                    {totalPages > 1 && (
+                        <div className="mt-10">
+                            <CustomPagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                basePath="/exams"
+                            />
+                        </div>
+                    )}
 
                 </div>
             </section>

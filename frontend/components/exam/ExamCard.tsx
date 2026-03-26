@@ -3,21 +3,23 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-type ExamCardProps = {
-    id?: string | number;
+export type ExamCardProps = {
+    exam_id: string;
     title: string;
-    subject: string;
-    duration: string;
+    type?: string;
+    duration: number;
     image?: string;
 };
 
 export default function ExamCard({
-    id = 1,
+    exam_id,
     title,
-    subject,
+    type = "practice",
     duration,
     image = "/carddethi.png",
 }: ExamCardProps) {
+    const durationInMinutes = Math.floor(duration / 60);
+
     return (
         <Card
             className="
@@ -43,10 +45,10 @@ export default function ExamCard({
                 </h3>
 
                 <p className="text-[11px] sm:text-xs text-[#92B8FF] mb-2 sm:mb-3">
-                    Môn học: {subject} | Thời lượng: {duration}
+                    {type === "practice" ? "Luyện tập" : "Thi thật"} | Thời gian: {durationInMinutes} phút
                 </p>
 
-                <Link href={`/exams/${id}`}>
+                <Link href={`/exams/${exam_id}`}>
                     <Button
                         variant="outline"
                         className="
