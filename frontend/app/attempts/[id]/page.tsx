@@ -10,7 +10,9 @@ import { MultipleChoice } from "@/components/attempt/questions/MultipleChoice";
 import { TrueFalse } from "@/components/attempt/questions/TrueFalse";
 import { ShortAnswer } from "@/components/attempt/questions/ShortAnswer";
 import { LatexText } from "@/components/shared/LatexText";
+import { ExplanationCard } from "@/components/attempt/content/ExplanationCard";
 import { useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 
 import mockData from "../../../mock_exam_data.json";
 
@@ -20,10 +22,13 @@ interface GroupedQuestion {
     content: string;
     imageUrl: string | null;
     options: { id: string; text: string }[] | null;
+    correct_answer?: string;
+    explanation?: string;
     children?: {
         id: string;
         content: string;
         options: { id: string; text: string }[];
+        correct_answer?: string;
     }[];
     sTitle: string;
     sDesc: string;
@@ -31,6 +36,8 @@ interface GroupedQuestion {
 }
 
 export default function AttemptPage() {
+    const params = useParams();
+    const id = params?.id as string;
     const { title, duration_minutes, questions } = mockData.data;
 
     const allQuestionsArray = useMemo(() => {
@@ -53,7 +60,8 @@ export default function AttemptPage() {
                     item.children = (childrenMap.get(q.question_id) || []).map(child => ({
                         id: child.question_id,
                         content: child.content,
-                        options: child.options || []
+                        options: child.options || [],
+                        correct_answer: child.correct_answer
                     }));
                 }
                 grouped.push(item);
@@ -76,6 +84,27 @@ export default function AttemptPage() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [bookmarks, setBookmarks] = useState<Set<number>>(new Set());
+    const router = useRouter();
+    const [mode, setMode] = useState<"exam" | "review">("exam");
+
+    const results = useMemo(() => {
+        if (mode !== "review") return undefined;
+        const res: Record<number, boolean> = {};
+        allQuestionsArray.forEach(q => {
+            if (q.type === "single_choice" || q.type === "short_answer") {
+                res[q.globalNum] = answers[q.id] === q.correct_answer;
+            } else if (q.type === "cluster_context" && q.children) {
+                let isAllCorrect = true;
+                q.children.forEach((child: any) => {
+                    if (answers[child.id] !== child.correct_answer) {
+                        isAllCorrect = false;
+                    }
+                });
+                res[q.globalNum] = isAllCorrect;
+            }
+        });
+        return res;
+    }, [mode, allQuestionsArray, answers]);
 
     useEffect(() => {
         const html = document.documentElement;
@@ -130,6 +159,7 @@ export default function AttemptPage() {
         <ExamHeader
             sectionTitle={currentQ?.sTitle || ""}
             sectionDesc={currentQ?.sDesc || ""}
+            mode={mode}
         />
     );
 
@@ -141,8 +171,12 @@ export default function AttemptPage() {
             bookmarkedQuestions={bookmarkedQuestions}
             currentIndex={currentIndex}
             onSelectQuestion={setCurrentIndex}
-            onSubmit={() => alert(`Nộp bài với dữ liệu:\n${JSON.stringify(answers, null, 2)}`)}
+            onSubmit={() => {
+                router.push(`/attempts/${id}/result`);
+            }}
             user={mockUser}
+            mode={mode}
+            results={results}
         />
     );
 
@@ -171,6 +205,8 @@ export default function AttemptPage() {
                         options={currentQ.options}
                         value={answers[currentQ.id]}
                         onChange={(val) => handleAnswer(currentQ.id, val)}
+                        mode={mode}
+                        correctAnswer={currentQ.correct_answer}
                     />
                 )}
 
@@ -180,6 +216,11 @@ export default function AttemptPage() {
                         statements={currentQ.children}
                         answers={answers}
                         onChange={(childId, val) => handleAnswer(childId, val)}
+                        mode={mode}
+                        correctAnswers={currentQ.children.reduce((acc: any, child: any) => {
+                            acc[child.id] = child.correct_answer;
+                            return acc;
+                        }, {})}
                     />
                 )}
 
@@ -188,6 +229,15 @@ export default function AttemptPage() {
                         name={currentQ.id}
                         value={answers[currentQ.id] || ""}
                         onChange={(val) => handleAnswer(currentQ.id, val)}
+                        mode={mode}
+                        correctAnswer={currentQ.correct_answer}
+                    />
+                )}
+
+                {mode === "review" && (
+                    <ExplanationCard 
+                        correctAnswerText={currentQ.correct_answer}
+                        explanation={currentQ.explanation || "Lời giải chi tiết cho câu hỏi này chưa có sẵn."}
                     />
                 )}
             </Question>

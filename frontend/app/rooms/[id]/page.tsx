@@ -31,7 +31,7 @@ export default async function RoomDetailPage({
     const totalPages = 3;
 
     return (
-        <main className="min-h-screen bg-neutral-50 flex flex-col items-center mx-auto max-w-[1920px]">
+        <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
             <Header />
 
             <section className="w-full bg-[#F6FBFF] flex-grow py-8 md:py-12 border-t border-blue-50">

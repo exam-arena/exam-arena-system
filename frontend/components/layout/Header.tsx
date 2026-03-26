@@ -29,9 +29,9 @@ export interface HeaderProps {
   };
 }
 
-export default function Header({ 
-  isLoggedIn = false, 
-  user = { name: "User 1" } 
+export default function Header({
+  isLoggedIn = false,
+  user = { name: "User 1" }
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -39,7 +39,7 @@ export default function Header({
     <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-[5rem] overflow-hidden">
       {/* ─── Desktop ─── */}
       <div className="hidden lg:flex items-center justify-between h-full px-[6rem] max-w-[1920px] mx-auto gap-[1.5rem]">
-        
+
         {/* Logo */}
         <Link href="/" className="flex flex-col shrink-0 items-center justify-center p-[0.625rem] w-[11.75rem]">
           <div className="flex flex-col items-center justify-center gap-[0.25rem]">
@@ -68,7 +68,7 @@ export default function Header({
 
         {/* Right Actions */}
         <div className="flex items-center justify-end gap-[0.75rem] w-[25rem]">
-          
+
           {/* Search Bar - Hiện ở cả 2 trạng thái */}
           <div className="relative flex items-center h-[2.25rem] w-[16.938rem] rounded-[30px] bg-white/20 px-[1rem] gap-[0.25rem] shrink-0 overflow-hidden">
             <Search className="size-[1.25rem] text-white/70 shrink-0" />
@@ -98,7 +98,7 @@ export default function Header({
             </div>
           ) : (
             <Button asChild className="h-[2.25rem] px-[1.5rem] rounded-[30px] bg-[#FFD600] text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D] border-none shrink-0">
-              <Link href="/login">Đăng nhập</Link>
+              <Link href="/login" className="!text-[#004EDC]">Đăng nhập</Link>
             </Button>
           )}
 
@@ -124,14 +124,14 @@ export default function Header({
 
         {/* Mobile actions */}
         <div className="flex items-center gap-3">
-          
+
           {isLoggedIn ? (
             <div className="size-8 rounded-full bg-white/20 border border-white flex items-center justify-center">
-              {user?.avatar ? ( <Image src={user.avatar} width={32} height={32} alt="User" className="rounded-full" /> ) : ( <User className="size-4 text-white" /> )}
+              {user?.avatar ? (<Image src={user.avatar} width={32} height={32} alt="User" className="rounded-full" />) : (<User className="size-4 text-white" />)}
             </div>
           ) : (
-            <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold text-gray-900 hover:bg-[#FFE44D] border-none">
-              <Link href="/login">Đăng nhập</Link>
+            <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold hover:bg-[#FFE44D] border-none">
+              <Link href="/login" className="!text-[#004EDC]">Đăng nhập</Link>
             </Button>
           )}
 

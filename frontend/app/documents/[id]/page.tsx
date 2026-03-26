@@ -11,7 +11,7 @@ export default async function DocumentDetailPage({
     const { id } = await params;
 
     return (
-        <main className="min-h-screen bg-neutral-50 flex flex-col mx-auto max-w-[1920px]">
+        <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
             <Header />
 
             <section className="w-full bg-[#F6FBFF] py-16 flex-grow flex flex-col items-center justify-center border-t border-blue-50 px-4">
