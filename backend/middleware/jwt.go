@@ -13,7 +13,8 @@ var errInvalidToken = errors.New("invalid token")
 
 // Claims mirrors what login should issue: sub = user UUID, optional role.
 type Claims struct {
-	Role string `json:"role,omitempty"`
+	UserID string `json:"user_id,omitempty"`
+	Role   string `json:"role,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -42,10 +43,15 @@ func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
 		return uuid.Nil, errInvalidToken
 	}
 
-	if claims.Subject == "" {
+	subject := claims.Subject
+	if subject == "" {
+		// Backward compatibility for tokens issued before switching to standard JWT sub.
+		subject = claims.UserID
+	}
+	if subject == "" {
 		return uuid.Nil, errInvalidToken
 	}
-	id, err := uuid.Parse(claims.Subject)
+	id, err := uuid.Parse(subject)
 	if err != nil {
 		return uuid.Nil, errInvalidToken
 	}
