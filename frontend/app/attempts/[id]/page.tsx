@@ -13,8 +13,29 @@ import { LatexText } from "@/components/shared/LatexText";
 import { ExplanationCard } from "@/components/attempt/content/ExplanationCard";
 import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import data from "@/data.json";
 
-import mockData from "../../../mock_exam_data.json";
+// Hàm mock trả về dữ liệu bài thi (Sau này thay bằng fetch API /api/attempts/:id)
+async function fetchAttemptData(attemptId: string) {
+    const attempt = data.exam_attempts.find(a => a.attempt_id === attemptId) || data.exam_attempts[0];
+    const exam = data.exams.find(e => e.exam_id === attempt?.exam_id) || data.exams[0];
+    const user = data.users.find(u => u.user_id === attempt?.user_id) || data.users[0];
+
+    // Gộp tất cả question từ các section lại do Layout cũ đang dùng mảng phẳng
+    const questions = exam.sections.reduce((acc, sec) => acc.concat(sec.questions), [] as any[]);
+
+    return {
+        title: exam.title,
+        duration_minutes: Math.floor(exam.duration / 60),
+        questions,
+        user: {
+            name: user.username,
+            fullName: user.fullname,
+            email: user.email,
+            role: user.role
+        }
+    };
+}
 
 interface GroupedQuestion {
     id: string;
@@ -38,9 +59,23 @@ interface GroupedQuestion {
 export default function AttemptPage() {
     const params = useParams();
     const id = params?.id as string;
-    const { title, duration_minutes, questions } = mockData.data;
+
+    const [examData, setExamData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!id) return;
+        setIsLoading(true);
+        fetchAttemptData(id).then(res => {
+            setExamData(res);
+            setIsLoading(false);
+        });
+    }, [id]);
+
+    const { title, duration_minutes, questions } = examData || {};
 
     const allQuestionsArray = useMemo(() => {
+        if (!questions) return [];
         const grouped: any[] = [];
         const childrenMap = new Map<string, any[]>();
 
@@ -146,12 +181,11 @@ export default function AttemptPage() {
 
     const bookmarkedQuestions = useMemo(() => Array.from(bookmarks), [bookmarks]);
 
-    const mockUser = {
-        name: "User 1",
-        fullName: "Hà Trọng Thắng",
-        grade: "Lớp 12",
-        target: "8.5/10"
-    };
+    const { user: mockUser } = examData || {};
+
+    if (isLoading || !examData) {
+        return <div className="min-h-screen w-full flex items-center justify-center font-medium text-[#004edc]">Đang tải dữ liệu bài thi...</div>;
+    }
 
     const currentQ = allQuestionsArray[currentIndex];
 

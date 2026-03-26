@@ -3,13 +3,7 @@
 import ExamCard from "@/components/exam/ExamCard";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-const exams = Array(8).fill({
-    title: "ĐỀ ÔN LUYỆN SỐ 1",
-    subject: "Toán học",
-    duration: "90 phút",
-    image: "/carddethi.png",
-}).map((e, index) => ({ ...e, id: index + 1 }));
+import data from "@/data.json";
 
 export default function NewExam() {
     return (
@@ -30,9 +24,9 @@ export default function NewExam() {
                 {/* Grid wrapper */}
                 <div className="max-w-[1248px] mx-auto">
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 lg:gap-8">
-                        {exams.map((exam, index) => (
+                        {data.exams.map((exam, index) => (
                             <div
-                                key={exam.id}
+                                key={exam.exam_id}
                                 className={index >= 6 ? "hidden lg:block" : index >= 4 ? "hidden md:block" : ""}>
                                 <ExamCard {...exam} />
                             </div>
