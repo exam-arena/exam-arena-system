@@ -25,7 +25,7 @@ export default async function RoomDetailPage({
     }
 
     const currentPage = parseInt(page || "1", 10);
-    const itemsPerPage = 6;
+    const itemsPerPage = 8;
     const { items: displayExams, totalPages } = await getExamsByRoomId(room.id, currentPage, itemsPerPage);
 
     return (
