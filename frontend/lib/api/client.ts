@@ -44,6 +44,7 @@ export async function apiRequest<T>(
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      credentials: "include",
     });
 
     const json = await response.json();

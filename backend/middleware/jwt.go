@@ -22,12 +22,18 @@ func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
 	if secret == "" {
 		return uuid.Nil, errInvalidToken
 	}
-	raw := strings.TrimSpace(r.Header.Get("Authorization"))
-	if raw == "" {
-		return uuid.Nil, errInvalidToken
+	tokenStr := ""
+	if cookie, err := r.Cookie("access_token"); err == nil {
+		tokenStr = strings.TrimSpace(cookie.Value)
 	}
-	tokenStr := strings.TrimPrefix(raw, "Bearer")
-	tokenStr = strings.TrimSpace(tokenStr)
+	if tokenStr == "" {
+		raw := strings.TrimSpace(r.Header.Get("Authorization"))
+		if raw == "" {
+			return uuid.Nil, errInvalidToken
+		}
+		tokenStr = strings.TrimPrefix(raw, "Bearer")
+		tokenStr = strings.TrimSpace(tokenStr)
+	}
 	if tokenStr == "" {
 		return uuid.Nil, errInvalidToken
 	}
@@ -45,7 +51,6 @@ func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
 
 	subject := claims.Subject
 	if subject == "" {
-		// Backward compatibility for tokens issued before switching to standard JWT sub.
 		subject = claims.UserID
 	}
 	if subject == "" {
