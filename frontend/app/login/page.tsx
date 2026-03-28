@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
@@ -12,13 +12,19 @@ import { useAuth } from "@/lib/auth/hooks";
 import { ApiError } from "@/lib/api/client";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const router = useRouter();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace("/home");
+    }
+  }, [isLoading, router, user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,7 +40,7 @@ export default function LoginPage() {
       await login(identifier, password);
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get("from") || "/home";
-      router.push(redirectTo);
+      router.replace(redirectTo);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "NETWORK_ERROR") {
