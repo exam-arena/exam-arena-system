@@ -20,6 +20,7 @@ func main() {
 	// ===== Init =====
 	utils.InitJWT()
 	config.ConnectDatabase()
+	config.ConnectRedis()
 	routes.SetupRoutes()
 
 	// ===== Tạo server =====

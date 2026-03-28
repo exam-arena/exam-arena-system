@@ -35,6 +35,15 @@ export interface ExamRaw {
   sections: SectionRaw[];
 }
 
+export interface ExamRoomListItemRaw {
+  exam_id: string;
+  room_id: string;
+  title: string;
+  type: string;
+  duration: number;
+  start_time?: string;
+}
+
 
 export interface ExamListItem {
   id: string;
