@@ -1,21 +1,17 @@
 package handlers
 
 import (
-	"errors"
-	"log"
 	"net/http"
 
-	"backend/config"
 	"backend/middleware"
 	"backend/models"
 	"backend/utils"
-
-	"gorm.io/gorm"
 )
 
 // ProfileResponse is returned for the corner user display on the FE.
 type ProfileResponse struct {
 	UserID   string `json:"user_id"`
+	Username string `json:"username"`
 	Fullname string `json:"fullname"`
 	Email    string `json:"email"`
 	Role     string `json:"role"`
@@ -24,6 +20,7 @@ type ProfileResponse struct {
 func profileResponseFromUser(u models.User) ProfileResponse {
 	return ProfileResponse{
 		UserID:   u.UserID,
+		Username: u.Username,
 		Fullname: u.Fullname,
 		Email:    u.Email,
 		Role:     u.Role,
@@ -38,22 +35,17 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := middleware.UserID(r)
+	claims, ok := middleware.AuthClaims(r)
 	if !ok {
 		utils.SendError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
 		return
 	}
 
-	var u models.User
-	if err := config.DB.Select("user_id", "fullname", "email", "role").Where("user_id = ? AND deleted_at IS NULL", userID).First(&u).Error; err != nil {
-		log.Printf("profile: load user %s: %v", userID, err)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			utils.SendError(w, http.StatusNotFound, "NOT_FOUND", "User not found")
-			return
-		}
-		utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong")
-		return
-	}
-
-	utils.SendSuccess(w, profileResponseFromUser(u))
+	utils.SendSuccess(w, profileResponseFromUser(models.User{
+		UserID:   claims.UserID,
+		Username: claims.Username,
+		Fullname: claims.Fullname,
+		Email:    claims.Email,
+		Role:     claims.Role,
+	}))
 }
