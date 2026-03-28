@@ -3,7 +3,7 @@ import Footer from "@/components/layout/Footer";
 import RoomCard from "@/components/room/RoomCard";
 import CustomPagination from "@/components/shared/CustomPagination";
 import Banner from "@/components/sections/Banner";
-import data from "@/data.json";
+import { getRooms } from "@/lib/api/rooms/api";
 
 export default async function RoomsPage({
     searchParams,
@@ -16,14 +16,7 @@ export default async function RoomsPage({
     const currentPage = parseInt(page || "1", 10);
     const itemsPerPage = 6;
 
-    // Sử dụng list phòng thi chuẩn từ data.json
-    const allRooms = data.exam_rooms || [];
-    const totalPages = Math.ceil(allRooms.length / itemsPerPage) || 1;
-
-    const displayedRooms = allRooms.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const { items: displayedRooms, totalPages } = await getRooms(currentPage, itemsPerPage);
 
     return (
         <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
