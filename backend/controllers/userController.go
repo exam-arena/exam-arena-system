@@ -22,7 +22,7 @@ type LoginRequest struct {
 	Password   string `json:"password"`
 }
 
-//  API Signup
+// API Signup
 func Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -31,7 +31,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.SendError(w, http.StatusBadRequest, "BAD_REQUEST", "Invalid JSON body")
+		utils.SendError(w, http.StatusBadRequest, "BAD_REQUEST", "Dữ liệu gửi lên không hợp lệ")
 		return
 	}
 
@@ -57,10 +57,10 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrEmailExists),
 			errors.Is(err, services.ErrUsernameExists):
 
-			utils.SendError(w, http.StatusConflict, "CONFLICT", "Email or username already exists")
+			utils.SendError(w, http.StatusConflict, "CONFLICT", "Email hoặc tên tài khoản đã tồn tại")
 
 		default:
-			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong")
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Đã xảy ra lỗi, vui lòng thử lại")
 		}
 		return
 	}
@@ -72,13 +72,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Phương thức không được hỗ trợ")
 		return
 	}
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.SendError(w, http.StatusBadRequest, "BAD_REQUEST", "Invalid JSON body")
+		utils.SendError(w, http.StatusBadRequest, "BAD_REQUEST", "Dữ liệu gửi lên không hợp lệ")
 		return
 	}
 
@@ -96,10 +96,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 			})
 
 		case errors.Is(err, services.ErrInvalidCredentials):
-			utils.SendError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Email or password is incorrect")
+			utils.SendError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Tài khoản hoặc mật khẩu không đúng")
 
 		default:
-			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong")
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Đã xảy ra lỗi, vui lòng thử lại")
 		}
 		return
 	}

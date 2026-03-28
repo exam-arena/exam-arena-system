@@ -1,11 +1,13 @@
-"use client";
 
 import ExamCard from "@/components/exam/ExamCard";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import data from "@/data.json";
+import { getLatestExams } from '@/lib/api/exams/api';
 
-export default function NewExam() {
+export default async function NewExam() {
+    const exams = await getLatestExams();
+    const displayExams = exams.slice(0, 8);
+
     return (
         <section className="w-full bg-[#F6FBFF] py-8 sm:py-9 md:py-[36px]">
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 lg:px-[96px]">
@@ -24,7 +26,7 @@ export default function NewExam() {
                 {/* Grid wrapper */}
                 <div className="max-w-[1248px] mx-auto">
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 lg:gap-8">
-                        {data.exams.map((exam, index) => (
+                        {displayExams.map((exam, index) => (
                             <div
                                 key={exam.exam_id}
                                 className={index >= 6 ? "hidden lg:block" : index >= 4 ? "hidden md:block" : ""}>
