@@ -2,9 +2,17 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, Menu, ChevronDown, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetTrigger,
@@ -16,9 +24,20 @@ import Image from "next/image";
 import { useAuth } from "@/lib/auth/hooks";
 
 export default function Header() {
-  const { user, isLoading } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const isLoggedIn = !!user;
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace("/");
+      router.refresh();
+    } catch {
+      window.alert("Khong the dang xuat. Vui long thu lai.");
+    }
+  };
 
   const navLinks = useMemo(() => [
     { label: "Trang chủ", href: isLoggedIn ? "/home" : "/" },
@@ -75,15 +94,36 @@ export default function Header() {
 
           {/* Conditional Auth Block */}
           {isLoggedIn ? (
-            <div className="h-[2.25rem] rounded-[30px] bg-white/20 border border-white box-border flex items-center justify-center py-[0.5rem] px-[0.75rem] gap-[0.5rem] shrink-0 cursor-pointer hover:bg-white/30 transition-colors group">
-              <div className="flex items-center gap-[0.35rem] shrink-0">
-                <div className="size-[1.5rem] bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
-                  <User className="size-[1rem] text-white" />
-                </div>
-                <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.fullname}</span>
-              </div>
-              <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-[2px] transition-transform" />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="h-[2.25rem] rounded-[30px] bg-white/20 border border-white box-border flex items-center justify-center py-[0.5rem] px-[0.75rem] gap-[0.5rem] shrink-0 cursor-pointer hover:bg-white/30 transition-colors group"
+                >
+                  <div className="flex items-center gap-[0.35rem] shrink-0">
+                    <div className="size-[1.5rem] bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
+                      <User className="size-[1rem] text-white" />
+                    </div>
+                    <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.fullname}</span>
+                  </div>
+                  <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-[2px] transition-transform" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem>Thông tin cá nhân</DropdownMenuItem>
+                <DropdownMenuItem>Lịch sử thi</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleLogout();
+                  }}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  Đăng xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Button asChild className="h-[2.25rem] px-[1.5rem] rounded-[30px] bg-[#FFD600] text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D] border-none shrink-0">
               <Link href="/login" className="!text-[#004EDC]">Đăng nhập</Link>

@@ -23,5 +23,11 @@ export async function registerApi(
 }
 
 export async function getMeApi(): Promise<UserData> {
-  return apiRequest<UserData>("/api/v1/auth/me", { auth: true });
+  return apiRequest<UserData>("/api/v1/auth/me");
+}
+
+export async function logoutApi(): Promise<void> {
+  await apiRequest<{ message: string }>("/api/v1/auth/logout", {
+    method: "POST",
+  });
 }
