@@ -7,7 +7,7 @@ import (
 )
 
 // ⚙️ Cost càng cao → càng bảo mật nhưng chậm hơn
-const bcryptCost = 12
+const bcryptCost = 10
 
 // ✅ Hash password (dùng khi signup)
 func HashPassword(password string) (string, error) {
