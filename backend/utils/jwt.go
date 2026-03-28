@@ -24,7 +24,11 @@ func InitJWT() {
 }
 
 type Claims struct {
-	Role string `json:"role"`
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Fullname string `json:"fullname"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -32,7 +36,11 @@ type Claims struct {
 func GenerateJWT(user *models.User) (string, error) {
 	expirationTime := time.Now().Add(2 * time.Hour) // Token có hạn 2h
 	claims := &Claims{
-		Role: user.Role,
+		UserID:   user.UserID,
+		Username: user.Username,
+		Fullname: user.Fullname,
+		Email:    user.Email,
+		Role:     user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.UserID,
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
