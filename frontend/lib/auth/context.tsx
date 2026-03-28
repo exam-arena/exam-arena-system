@@ -9,8 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { UserData, RegisterRequest } from "../api/auth/types";
-import { loginApi, registerApi, getMeApi } from "../api/auth/api";
-import { getToken, setToken, removeToken } from "./token";
+import { loginApi, registerApi, getMeApi, logoutApi } from "../api/auth/api";
 import { ApiError } from "../api/shared/errors";
 
 
@@ -19,7 +18,7 @@ export interface AuthContextValue {
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,20 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     let cancelled = false;
     getMeApi()
       .then((userData) => {
         if (!cancelled) setUser(userData);
       })
-      .catch(() => {
-        removeToken();
-      })
+      .catch(() => {})
       .finally(() => {
         if (!cancelled) setIsLoading(false);
       });
@@ -55,7 +46,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (identifier: string, password: string) => {
       const data = await loginApi(identifier, password);
-      setToken(data.token);
       setUser(data.user);
     },
     []
@@ -68,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const logout = useCallback(() => {
-    removeToken();
+  const logout = useCallback(async () => {
+    await logoutApi();
     setUser(null);
   }, []);
 

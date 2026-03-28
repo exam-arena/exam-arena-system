@@ -1,3 +1,4 @@
+import RequireAuth from "@/components/auth/RequireAuth";
 import Header from "@/components/layout/Header";
 import Hero from "@/components/sections/Hero";
 import Countdown from "@/components/sections/Countdown";
@@ -9,15 +10,17 @@ import Footer from "@/components/layout/Footer";
 
 export default function HomePage() {
     return (
-        <main className="min-h-screen bg-neutral-50 flex flex-col items-center mx-auto max-w-[1920px]">
-            <Header />
-            <Hero />
-            <Countdown targetDate="2026-06-11T00:00:00+07:00" />
-            <HotRoom />
-            <NewExam />
-            <CTA />
-            <Docs />
-            <Footer />
-        </main>
+        <RequireAuth>
+            <main className="min-h-screen bg-neutral-50 flex flex-col">
+                <Header />
+                <Hero />
+                <Countdown targetDate="2026-06-11T00:00:00+07:00" />
+                <HotRoom />
+                <NewExam />
+                <CTA />
+                <Docs />
+                <Footer />
+            </main>
+        </RequireAuth>
     );
 }
