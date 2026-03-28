@@ -13,14 +13,17 @@ var errInvalidToken = errors.New("invalid token")
 
 // Claims mirrors what login should issue: sub = user UUID, optional role.
 type Claims struct {
-	UserID string `json:"user_id,omitempty"`
-	Role   string `json:"role,omitempty"`
+	UserID   string `json:"user_id,omitempty"`
+	Username string `json:"username,omitempty"`
+	Fullname string `json:"fullname,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Role     string `json:"role,omitempty"`
 	jwt.RegisteredClaims
 }
 
-func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
+func claimsFromRequest(r *http.Request, secret string) (*Claims, error) {
 	if secret == "" {
-		return uuid.Nil, errInvalidToken
+		return nil, errInvalidToken
 	}
 	tokenStr := ""
 	if cookie, err := r.Cookie("access_token"); err == nil {
@@ -29,13 +32,13 @@ func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
 	if tokenStr == "" {
 		raw := strings.TrimSpace(r.Header.Get("Authorization"))
 		if raw == "" {
-			return uuid.Nil, errInvalidToken
+			return nil, errInvalidToken
 		}
 		tokenStr = strings.TrimPrefix(raw, "Bearer")
 		tokenStr = strings.TrimSpace(tokenStr)
 	}
 	if tokenStr == "" {
-		return uuid.Nil, errInvalidToken
+		return nil, errInvalidToken
 	}
 
 	var claims Claims
@@ -46,7 +49,16 @@ func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
 		return []byte(secret), nil
 	})
 	if err != nil {
-		return uuid.Nil, errInvalidToken
+		return nil, errInvalidToken
+	}
+
+	return &claims, nil
+}
+
+func userIDFromRequest(r *http.Request, secret string) (uuid.UUID, error) {
+	claims, err := claimsFromRequest(r, secret)
+	if err != nil {
+		return uuid.Nil, err
 	}
 
 	subject := claims.Subject

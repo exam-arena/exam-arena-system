@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-
 const PUBLIC_PATHS = [
   "/",
   "/login",
@@ -35,43 +32,18 @@ function isProtectedRoute(pathname: string): boolean {
   return !isPublicRoute(pathname);
 }
 
-async function hasValidSession(request: NextRequest): Promise<boolean> {
-  const token = request.cookies.get("access_token")?.value;
-  if (!token) return false;
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
-      method: "GET",
-      headers: {
-        Cookie: request.headers.get("cookie") || "",
-      },
-      cache: "no-store",
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
+function hasSessionCookie(request: NextRequest): boolean {
+  return !!request.cookies.get("access_token")?.value;
 }
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname !== "/login" && !isProtectedRoute(pathname)) {
+  if (!isProtectedRoute(pathname)) {
     return NextResponse.next();
   }
 
-  const isAuthenticated = await hasValidSession(request);
-
-  if (pathname === "/login" && isAuthenticated) {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
-
-  if (pathname === "/login") {
-    return NextResponse.next();
-  }
-
-  if (!isAuthenticated) {
+  if (!hasSessionCookie(request)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     const response = NextResponse.redirect(loginUrl);
