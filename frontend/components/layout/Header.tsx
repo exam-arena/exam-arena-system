@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, Menu, ChevronDown, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,27 +13,19 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import Image from "next/image";
+import { useAuth } from "@/lib/auth/hooks";
 
-const navLinks = [
-  { label: "Trang chủ", href: "/" },
-  { label: "Phòng luyện thi", href: "/rooms" },
-  { label: "Đề thi", href: "/exams" },
-  { label: "Tài liệu tham khảo", href: "/documents" },
-];
-
-export interface HeaderProps {
-  isLoggedIn?: boolean;
-  user?: {
-    name: string;
-    avatar?: string;
-  };
-}
-
-export default function Header({
-  isLoggedIn = false,
-  user = { name: "User 1" }
-}: HeaderProps) {
+export default function Header() {
+  const { user, isLoading } = useAuth();
+  const isLoggedIn = !!user;
   const [searchQuery, setSearchQuery] = useState("");
+
+  const navLinks = useMemo(() => [
+    { label: "Trang chủ", href: isLoggedIn ? "/home" : "/" },
+    { label: "Phòng luyện thi", href: "/rooms" },
+    { label: "Đề thi", href: "/exams" },
+    { label: "Tài liệu tham khảo", href: "/documents" },
+  ], [isLoggedIn]);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-[5rem] overflow-hidden">
@@ -86,13 +78,9 @@ export default function Header({
             <div className="h-[2.25rem] rounded-[30px] bg-white/20 border border-white box-border flex items-center justify-center py-[0.5rem] px-[0.75rem] gap-[0.5rem] shrink-0 cursor-pointer hover:bg-white/30 transition-colors group">
               <div className="flex items-center gap-[0.35rem] shrink-0">
                 <div className="size-[1.5rem] bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
-                  {user?.avatar ? (
-                    <Image src={user.avatar} width={24} height={24} alt="Avatar" className="object-cover" />
-                  ) : (
-                    <User className="size-[1rem] text-white" />
-                  )}
+                  <User className="size-[1rem] text-white" />
                 </div>
-                <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.name}</span>
+                <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.fullname}</span>
               </div>
               <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-[2px] transition-transform" />
             </div>
@@ -127,7 +115,7 @@ export default function Header({
 
           {isLoggedIn ? (
             <div className="size-8 rounded-full bg-white/20 border border-white flex items-center justify-center">
-              {user?.avatar ? (<Image src={user.avatar} width={32} height={32} alt="User" className="rounded-full" />) : (<User className="size-4 text-white" />)}
+              <User className="size-4 text-white" />
             </div>
           ) : (
             <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold hover:bg-[#FFE44D] border-none">

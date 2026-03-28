@@ -3,19 +3,7 @@ import Footer from "@/components/layout/Footer";
 import ExamCard from "@/components/exam/ExamCard";
 import CustomPagination from "@/components/shared/CustomPagination";
 import Banner from "@/components/sections/Banner";
-import data from "@/data.json";
-
-// Hàm mock lấy danh sách đề thi (Sau này đổi thành fetch('/api/exams'))
-async function fetchExams(page: number, limit: number) {
-    const allExams = data.exams || [];
-    const totalItems = allExams.length;
-    
-    // Phân trang từ backend
-    const start = (page - 1) * limit;
-    const items = allExams.slice(start, start + limit);
-
-    return { items, totalItems };
-}
+import { getExams } from "@/lib/api/exams/api";
 
 export default async function ExamsPage({
     searchParams,
@@ -28,9 +16,7 @@ export default async function ExamsPage({
     const currentPage = parseInt(page || "1", 10);
     const itemsPerPage = 8;
     
-    // Gọi "API" lấy dữ liệu
-    const { items: exams, totalItems } = await fetchExams(currentPage, itemsPerPage);
-    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    const { items: exams, totalPages } = await getExams(currentPage, itemsPerPage);
 
     return (
         <main className="min-h-screen bg-neutral-50 flex flex-col w-full">

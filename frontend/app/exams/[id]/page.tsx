@@ -3,19 +3,9 @@ import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import Banner from "@/components/sections/Banner";
 import ExamInfoTabs from "@/components/exam/ExamInfoTabs";
-import data from "@/data.json";
-
-// Hàm mock lấy thông tin user hiện tại đang login (Sau này lấy từ session API)
-async function fetchCurrentUser() {
-    return data.users.find(u => u.role === "student") || data.users[0];
-}
-
-// Hàm mock lấy chi tiết đề thi (Sau này đổi thành fetch('/api/exams/[id]'))
-async function fetchExamDetail(examId: string) {
-    const exam = data.exams.find((e) => e.exam_id === examId) || data.exams[0];
-    const room = data.exam_rooms.find((r) => r.room_id === exam?.room_id);
-    return { exam, room };
-}
+import { getExamById } from "@/lib/api/exams/api";
+import { getRoomById } from "@/lib/api/rooms/api";
+import { getMeApi } from "@/lib/api/auth/api";
 
 export default async function ExamInfoPage({
     params,
@@ -24,21 +14,22 @@ export default async function ExamInfoPage({
 }) {
     const { id } = await params;
 
-    // Fetch dữ liệu từ "API"
-    const { exam, room } = await fetchExamDetail(id);
-    const currentUser = await fetchCurrentUser();
-
+    const exam = await getExamById(id);
     if (!exam) {
         return <div className="p-10 text-center font-medium">Đề thi không tồn tại</div>;
     }
 
-    const durationInMinutes = Math.floor(exam.duration / 60);
-    // Tính tổng số câu hỏi từ data (chỉ đếm các câu gốc có parent_id = null)
-    const totalQuestions = exam.sections?.reduce(
-        (total: number, section: any) =>
-            total + (section.questions?.filter((q: any) => q.parent_id === null).length || 0),
-        0
-    ) || 0;
+    const room = await getRoomById(exam.roomId);
+    
+    // Todo: replace with actual server-side auth token when SSR auth is fully implemented
+    // For now fallback to a mock admin user for rendering purposes
+    const currentUser = {
+        username: "admin01",
+        fullname: "Đinh Văn Phạm Việt",
+        email: "dinhvanphamviet@gmail.com",
+        role: "admin"
+    };
+
     const participantCount = 610; // Tạm thời mock
 
 
@@ -57,7 +48,7 @@ export default async function ExamInfoPage({
                             <div className="flex items-center justify-start text-[#92b8ff] font-medium text-sm">
                                 <Link href="/" className="hover:text-[#004edc] transition-colors">Trang chủ</Link>
                                 <span className="mx-2">/</span>
-                                <Link href={`/rooms/${room?.room_id || 1}`} className="hover:text-[#004edc] transition-colors uppercase">
+                                <Link href={`/rooms/${room?.id || 1}`} className="hover:text-[#004edc] transition-colors uppercase">
                                     {room?.name || 'Phòng luyện thi'}
                                 </Link>
                                 <span className="mx-2">/</span>
@@ -68,7 +59,7 @@ export default async function ExamInfoPage({
                                 <div className="flex flex-col items-start gap-3 text-base">
                                     <div className="flex items-start gap-3">
                                         <div className="rounded-full bg-[#EAF2FF] text-[#004edc] flex items-center justify-center py-1 px-4">
-                                            <div className="font-semibold text-sm capitalize">{exam.type.replace('_', ' ')}</div>
+                                            <div className="font-semibold text-sm capitalize">{exam.typeLabel}</div>
                                         </div>
                                     </div>
                                     <h1 className="text-[2rem] font-bold font-inter mt-2 leading-tight uppercase">{exam.title}</h1>
@@ -76,8 +67,8 @@ export default async function ExamInfoPage({
 
                                 <ExamInfoTabs
                                     examId={id}
-                                    examDuration={`${durationInMinutes} phút`}
-                                    totalQuestions={totalQuestions}
+                                    examDuration={exam.durationLabel}
+                                    totalQuestions={exam.totalQuestions}
                                     participantCount={participantCount}
                                 />
                             </div>
