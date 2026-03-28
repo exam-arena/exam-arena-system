@@ -7,3 +7,5 @@ backend/tmp/
 .env
 .DS_Store
 .agent/
+.gocache/
+

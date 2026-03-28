@@ -2,53 +2,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Banner from "@/components/sections/Banner";
 import Link from "next/link";
-import data from "@/data.json";
-
-// Hàm mock trả về dữ liệu kết quả (Sau này thay bằng fetch API /api/attempts/:id/result)
-async function fetchResultData(attemptId: string) {
-    const attempt = data.exam_attempts.find(a => a.attempt_id === attemptId) || data.exam_attempts[0];
-    const exam = data.exams.find(e => e.exam_id === attempt.exam_id) || data.exams[0];
-    const user = data.users.find(u => u.user_id === attempt.user_id) || data.users[0];
-    const room = data.exam_rooms.find(r => r.room_id === exam.room_id) || data.exam_rooms[0];
-
-    // Giả lập tính toán đúng sai từ attempt logs
-    let correct = 0, wrong = 0, skipped = 0;
-    if (attempt && attempt.section_logs) {
-        attempt.section_logs.forEach((sec: any) => {
-            sec.details.forEach((detail: any) => {
-                if (!detail.selected_ans) skipped++;
-                else if (detail.is_correct) correct++;
-                else wrong++;
-            });
-        });
-    } else {
-        correct = 32; wrong = 8; skipped = 10;
-    }
-
-    return {
-        user: {
-            username: user.username,
-            fullname: user.fullname,
-            email: user.email,
-            role: user.role
-        },
-        exam: {
-            title: exam.title,
-            type: exam.type,
-        },
-        room: {
-            id: room.room_id,
-            name: room.name
-        },
-        result: {
-            score: attempt.marks ? attempt.marks.toString() : "8.0",
-            message: "Mức điểm khá ổn, hãy cố gắng hơn nữa nhé!",
-            correct,
-            wrong,
-            skipped
-        }
-    };
-}
+import { getAttemptResult } from "@/lib/api/attempts/api";
 
 export default async function ExamResultPage({
     params,
@@ -57,7 +11,7 @@ export default async function ExamResultPage({
 }) {
     const { id } = await params;
 
-    const { user: mockUser, exam, room, result: mockResult } = await fetchResultData(id);
+    const { user: mockUser, exam, room, result: mockResult } = await getAttemptResult(id);
 
     return (
         <main className="min-h-screen bg-white flex flex-col w-full font-roboto">

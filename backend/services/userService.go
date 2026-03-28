@@ -19,8 +19,8 @@ type RegisterInput struct {
 }
 
 type LoginInput struct {
-	Identifier    string
-	Password string
+	Identifier string
+	Password   string
 }
 
 // ================== RESPONSE ==================
@@ -41,15 +41,15 @@ type UserResponse struct {
 // ================== ERRORS ==================
 
 var (
-	ErrMissingFields    = errors.New("missing required fields")
-	ErrInvalidEmail     = errors.New("invalid email format")
-	ErrInvalidPassword  = errors.New("password must be at least 8 characters and include uppercase, lowercase, and number")
-	ErrInvalidUsername  = errors.New("invalid username")
-	ErrInvalidFullname  = errors.New("invalid fullname")
-	ErrEmailExists      = errors.New("email already exists")
-	ErrUsernameExists   = errors.New("username already exists")
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInternal         = errors.New("internal error")
+	ErrMissingFields      = errors.New("Vui lòng điền đầy đủ thông tin")
+	ErrInvalidEmail       = errors.New("Định dạng email không hợp lệ")
+	ErrInvalidPassword    = errors.New("Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số")
+	ErrInvalidUsername    = errors.New("Tên tài khoản không hợp lệ")
+	ErrInvalidFullname    = errors.New("Họ và tên không hợp lệ")
+	ErrEmailExists        = errors.New("Email đã được sử dụng")
+	ErrUsernameExists     = errors.New("Tên tài khoản đã tồn tại")
+	ErrInvalidCredentials = errors.New("Tài khoản hoặc mật khẩu không đúng")
+	ErrInternal           = errors.New("Đã xảy ra lỗi, vui lòng thử lại")
 )
 
 // ================== REGISTER ==================
@@ -129,7 +129,7 @@ func RegisterUser(input RegisterInput) error {
 func LoginUser(input LoginInput) (*LoginResponse, error) {
 
 	// ===== 1. Normalize =====
-	identifier := strings.TrimSpace(input.Identifier) 
+	identifier := strings.TrimSpace(input.Identifier)
 	password := input.Password //  KHÔNG TRIM
 
 	if identifier == "" || password == "" {
