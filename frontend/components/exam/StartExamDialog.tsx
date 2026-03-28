@@ -13,7 +13,7 @@ import {
 interface StartExamDialogProps {
   examId: string | number;
   duration?: string;
-  children: ReactNode; // Đóng vai trò là Trigger (nút bấm)
+  children: ReactNode;
 }
 
 export default function StartExamDialog({
@@ -34,7 +34,7 @@ export default function StartExamDialog({
         {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg rounded-[30px] border-none shadow-[0px_2px_8px_rgba(146,184,255,0.2)] p-8 sm:p-12 flex flex-col items-center text-center gap-4 sm:gap-6 bg-white outline-none">
-        
+
         <DialogHeader className="w-full flex flex-col items-center">
           <DialogTitle className="text-[1.25rem] sm:text-2xl font-bold text-[#004EDC] leading-[1.5rem]">
             Thông báo bắt đầu bài thi
@@ -49,7 +49,7 @@ export default function StartExamDialog({
         </div>
 
         <div className="flex items-center justify-center mt-4">
-          <button 
+          <button
             onClick={handleStart}
             className="rounded-[30px] bg-[#004EDC] hover:bg-blue-800 transition-colors flex items-center justify-center py-2 sm:py-3 px-6 sm:px-8 text-white focus:outline-none"
           >

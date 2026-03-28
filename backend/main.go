@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"backend/config"
+	"backend/middleware"
 	"backend/routes"
 	"backend/utils"
 )
@@ -24,6 +25,7 @@ func main() {
 	// ===== Tạo server =====
 	server := &http.Server{
 		Addr:              ":8080",
+		Handler:           middleware.CORS(http.DefaultServeMux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,

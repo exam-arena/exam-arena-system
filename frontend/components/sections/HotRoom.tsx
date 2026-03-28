@@ -4,9 +4,22 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay } from "swiper/modules";
 import "swiper/swiper-bundle.css";
 import RoomCard from "@/components/room/RoomCard";
-import mockData from "@/data.json";
+import { getHotRooms } from "@/lib/api/rooms/api";
+import { useEffect, useState } from "react";
+
+import type { RoomRaw } from "@/lib/api/rooms/types";
 
 export default function HotExam() {
+    const [rooms, setRooms] = useState<RoomRaw[]>([]);
+
+    useEffect(() => {
+        const fetchRooms = async () => {
+            const data = await getHotRooms();
+            setRooms(data);
+        };
+        fetchRooms();
+    }, []);
+
     return (
         <section className="w-full bg-white py-9 md:py-[36px]">
 
@@ -44,7 +57,7 @@ export default function HotExam() {
                             1024: { slidesPerView: 3 },
                         }}
                     >
-                        {mockData.exam_rooms.map((room) => (
+                        {rooms.slice(0, 4).map((room) => (
                             <SwiperSlide key={room.room_id} className="pb-12">
                                 <RoomCard {...room} />
                             </SwiperSlide>
