@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Sidebar } from "@/components/attempt/sidebar/Sidebar";
@@ -13,41 +13,8 @@ import { ExplanationCard } from "@/components/attempt/content/ExplanationCard";
 import { LatexText } from "@/components/shared/LatexText";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import data from "@/data.json";
-import mockAttemptData from "../../../../mock_attempt_data.json"; // Tạm keep fallback này nếu data.json trống answers
-
-// Hàm mock trả về dữ liệu review (Sau này thay bằng fetch API /api/attempts/:id/review)
-async function fetchReviewData(attemptId: string) {
-    const attempt = data.exam_attempts.find(a => a.attempt_id === attemptId) || data.exam_attempts[0];
-    const exam = data.exams.find(e => e.exam_id === attempt?.exam_id) || data.exams[0];
-    const user = data.users.find(u => u.user_id === attempt?.user_id) || data.users[0];
-
-    const questions = exam.sections.reduce((acc, sec) => acc.concat(sec.questions), [] as any[]);
-
-    // Tạm thời lấy user_answers từ attempt_logs nếu có
-    let user_answers: Record<string, string> = {};
-    if (attempt && attempt.section_logs) {
-        attempt.section_logs.forEach((log: any) => {
-            log.details.forEach((d: any) => {
-                user_answers[d.question_id] = d.selected_ans;
-            });
-        });
-    } else {
-        user_answers = mockAttemptData.data.user_answers;
-    }
-
-    return {
-        title: exam.title,
-        questions,
-        user_answers,
-        user: {
-            name: user.username,
-            fullName: user.fullname,
-            email: user.email,
-            role: user.role
-        }
-    };
-}
+import { getAttemptReview } from "@/lib/api/attempts/api";
+import type { AttemptReviewData } from "@/lib/api/attempts/types";
 
 interface GroupedQuestion {
     id: string;
@@ -71,23 +38,23 @@ interface GroupedQuestion {
 export default function ReviewPage() {
     const params = useParams();
     const id = params?.id as string;
+    const router = useRouter();
 
-    const [reviewData, setReviewData] = useState<any>(null);
+    const [reviewData, setReviewData] = useState<AttemptReviewData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!id) return;
         setIsLoading(true);
-        fetchReviewData(id).then(res => {
+        getAttemptReview(id).then(res => {
             setReviewData(res);
             setIsLoading(false);
         });
     }, [id]);
 
-    const { title, questions, user_answers, user: mockUser } = reviewData || {};
-
     const allQuestionsArray = useMemo(() => {
-        if (!questions) return [];
+        if (!reviewData) return [];
+        const { questions } = reviewData;
         const grouped: any[] = [];
         const childrenMap = new Map<string, any[]>();
 
@@ -126,13 +93,15 @@ export default function ReviewPage() {
         ];
 
         return flat.map((q, i) => ({ ...q, globalNum: i + 1 })) as GroupedQuestion[];
-    }, [questions]);
+    }, [reviewData]);
 
     const resultsMap = useMemo(() => {
+        if (!reviewData) return {};
+        const { userAnswers } = reviewData;
         const res: Record<number, boolean> = {};
         allQuestionsArray.forEach(q => {
             if (q.type === "single_choice" || q.type === "short_answer") {
-                const ans = user_answers[q.id as keyof typeof user_answers] as string | undefined;
+                const ans = userAnswers[q.id as keyof typeof userAnswers] as string | undefined;
                 if (ans !== undefined && ans !== null && ans.trim() !== "") {
                     res[q.globalNum] = ans === q.correct_answer;
                 }
@@ -140,7 +109,7 @@ export default function ReviewPage() {
                 let isAllCorrect = true;
                 let hasAnyAnswer = false;
                 q.children.forEach((child: any) => {
-                    const ans = user_answers[child.id as keyof typeof user_answers] as string | undefined;
+                    const ans = userAnswers[child.id as keyof typeof userAnswers] as string | undefined;
                     if (ans !== undefined && ans !== null && ans.trim() !== "") {
                         hasAnyAnswer = true;
                     }
@@ -154,7 +123,7 @@ export default function ReviewPage() {
             }
         });
         return res;
-    }, [allQuestionsArray, user_answers]);
+    }, [allQuestionsArray, reviewData]);
 
     // Grouping by section for rendering
     const sections = [
@@ -167,11 +136,13 @@ export default function ReviewPage() {
         return <div className="min-h-screen w-full flex items-center justify-center font-medium text-[#004edc]">Đang tải kết quả bài thi...</div>;
     }
 
+    const { title, userAnswers, user: mockUser } = reviewData;
+
     return (
         <div className="w-full relative bg-aliceblue flex flex-col items-start font-roboto min-h-screen">
             {/* Header */}
             <div className="w-full sticky top-0 z-50 shadow-md">
-                <Header isLoggedIn={true} user={mockUser} />
+                <Header />
             </div>
 
             {/* Main Content - Full width layout similar to ExamLayout */}
@@ -210,7 +181,7 @@ export default function ReviewPage() {
                                                             <MultipleChoice
                                                                 name={currentQ.id}
                                                                 options={currentQ.options}
-                                                                value={user_answers[currentQ.id as keyof typeof user_answers] as string}
+                                                                value={userAnswers[currentQ.id as keyof typeof userAnswers] as string}
                                                                 mode="review"
                                                                 correctAnswer={currentQ.correct_answer}
                                                             />
@@ -220,7 +191,7 @@ export default function ReviewPage() {
                                                             <TrueFalse
                                                                 parentId={currentQ.id}
                                                                 statements={currentQ.children}
-                                                                answers={user_answers as Record<string, string>}
+                                                                answers={userAnswers as Record<string, string>}
                                                                 mode="review"
                                                                 correctAnswers={currentQ.children.reduce((acc: any, child: any) => {
                                                                     acc[child.id] = child.correct_answer;
@@ -232,7 +203,7 @@ export default function ReviewPage() {
                                                         {currentQ.type === "short_answer" && (
                                                             <ShortAnswer
                                                                 name={currentQ.id}
-                                                                value={user_answers[currentQ.id as keyof typeof user_answers] as string || ""}
+                                                                value={userAnswers[currentQ.id as keyof typeof userAnswers] as string || ""}
                                                                 mode="review"
                                                                 correctAnswer={currentQ.correct_answer}
                                                             />

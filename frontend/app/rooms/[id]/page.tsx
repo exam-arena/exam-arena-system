@@ -5,24 +5,8 @@ import { Users, User, Clock, GraduationCap, ChevronLeft } from "lucide-react";
 import RoomExamCard from "@/components/room/RoomExamCard";
 import CustomPagination from "@/components/shared/CustomPagination";
 import Banner from "@/components/sections/Banner";
-import data from "@/data.json";
-
-// Hàm mock lấy chi tiết phòng thi (Sau này đổi thành fetch('/api/rooms/[id]'))
-async function fetchRoomDetail(roomId: string) {
-    const room = data.exam_rooms.find((r) => r.room_id === roomId) || data.exam_rooms[0];
-    return { room };
-}
-
-// Hàm mock lấy danh sách đề thi của phòng (Sau này đổi thành fetch('/api/rooms/[id]/exams'))
-async function fetchRoomExams(roomId: string, page: number, limit: number) {
-    const allExamsInRoom = data.exams.filter((exam) => exam.room_id === roomId);
-    const totalItems = allExamsInRoom.length;
-
-    const start = (page - 1) * limit;
-    const items = allExamsInRoom.slice(start, start + limit);
-
-    return { items, totalItems };
-}
+import { getRoomById } from "@/lib/api/rooms/api";
+import { getExamsByRoomId } from "@/lib/api/exams/api";
 
 export default async function RoomDetailPage({
     params,
@@ -31,19 +15,18 @@ export default async function RoomDetailPage({
     params: Promise<{ id: string }>;
     searchParams: Promise<{ page?: string }>;
 }) {
-    // Next.js 15
     const { id } = await params;
     const resolvedParams = await searchParams;
     const page = resolvedParams?.page;
 
-    // Gọi "API" lấy thông tin phòng
-    const { room } = await fetchRoomDetail(id);
+    const room = await getRoomById(id);
+    if (!room) {
+        return <div className="p-10 text-center font-medium">Phòng thi không tồn tại</div>;
+    }
 
-    // Xử lý phân trang cho danh sách đề thi
     const currentPage = parseInt(page || "1", 10);
-    const itemsPerPage = 6;
-    const { items: displayExams, totalItems } = await fetchRoomExams(room.room_id, currentPage, itemsPerPage);
-    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    const itemsPerPage = 8;
+    const { items: displayExams, totalPages } = await getExamsByRoomId(room.id, currentPage, itemsPerPage);
 
     return (
         <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
@@ -64,7 +47,7 @@ export default async function RoomDetailPage({
                                         <b className="text-[#004EDC] text-xl leading-tight uppercase">{room.name}</b>
                                         <div className="mt-2">
                                             <span className="bg-white text-[#004EDC] font-semibold text-xs px-3 py-1 rounded-full shadow-sm capitalize">
-                                                {room.type.replace('_', ' ')}
+                                                {room.typeLabel}
                                             </span>
                                         </div>
                                     </div>
@@ -75,21 +58,21 @@ export default async function RoomDetailPage({
                                                 <Users className="w-4 h-4" />
                                                 <span>Số lượng đề</span>
                                             </div>
-                                            <span className="font-semibold text-right">{room.test_quantity} đề</span>
+                                            <span className="font-semibold text-right">{room.testQuantity} đề</span>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 opacity-80">
                                                 <User className="w-4 h-4" />
                                                 <span>Giá</span>
                                             </div>
-                                            <span className="font-semibold text-right">{room.price > 0 ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(room.price) : 'Miễn phí'}</span>
+                                            <span className="font-semibold text-right">{room.priceLabel}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 opacity-80">
                                                 <Clock className="w-4 h-4" />
                                                 <span>Trạng thái</span>
                                             </div>
-                                            <span className="font-semibold text-right">{room.status === 'active' ? 'Đang mở' : 'Đóng'}</span>
+                                            <span className="font-semibold text-right">{room.statusLabel}</span>
                                         </div>
                                     </div>
                                 </div>
