@@ -14,7 +14,7 @@ interface TrueFalseProps {
   correctAnswers?: Record<string, string>;
 }
 
-export function TrueFalse({ statements, parentId, answers = {}, onChange, mode = "exam", correctAnswers = {} }: TrueFalseProps) {
+export function TrueFalse({ statements, answers = {}, onChange, mode = "exam", correctAnswers = {} }: TrueFalseProps) {
   const isSelected = (stmtId: string, val: string) => answers[stmtId] === val;
   const isCorrect = (stmtId: string, val: string) => mode === "review" && correctAnswers[stmtId] === val;
   const isWrongSelected = (stmtId: string, val: string) => mode === "review" && isSelected(stmtId, val) && correctAnswers[stmtId] !== val;
@@ -33,11 +33,11 @@ export function TrueFalse({ statements, parentId, answers = {}, onChange, mode =
           return (
             <React.Fragment key={stmt.id}>
               <div className="flex items-center px-[1.125rem] py-3 bg-aliceblue text-foreground border border-aliceblue transition-colors min-h-[48px] rounded-lg">
-              <div className="leading-[1.75rem] w-full break-words relative pl-7">
-                <b className="font-bold text-mediumslateblue absolute left-0 top-0">{labels[idx]}.</b>
-                <LatexText content={stmt.content} />
+                <div className="leading-[1.75rem] w-full break-words relative pl-7">
+                  <b className="font-bold text-mediumslateblue absolute left-0 top-0">{labels[idx]}.</b>
+                  <LatexText content={stmt.content} />
+                </div>
               </div>
-            </div>
 
               {/* The mock JSON usually defines options where [0] is "True/Đúng" and [1] is "False/Sai" */}
               {["True", "False"].map((opt) => {
@@ -45,8 +45,8 @@ export function TrueFalse({ statements, parentId, answers = {}, onChange, mode =
                 if (mode === "review") {
                   labelClass = "cursor-default";
                   if (isSelected(stmt.id, opt) && isCorrect(stmt.id, opt)) labelClass += " bg-mediumslateblue text-white border-mediumslateblue ring-2 ring-mediumslateblue";
-                  else if (isCorrect(stmt.id, opt)) labelClass += " bg-green-100 text-green-700 font-bold border-green-500 ring-2 ring-green-500";
-                  else if (isWrongSelected(stmt.id, opt)) labelClass += " bg-red-500 text-white font-bold ring-2 ring-red-500";
+                  else if (isCorrect(stmt.id, opt)) labelClass += " bg-green-100/90 text-green-700 font-bold border-green-500 ring-2 ring-green-500";
+                  else if (isWrongSelected(stmt.id, opt)) labelClass += " bg-red-100/90 text-red-700 font-bold border-red-500 ring-2 ring-red-500";
                   else labelClass += " bg-aliceblue";
                 } else {
                   if (isSelected(stmt.id, opt)) labelClass = "bg-mediumslateblue/20 ring-1 ring-mediumslateblue cursor-pointer";

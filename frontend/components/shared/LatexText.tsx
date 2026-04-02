@@ -13,7 +13,7 @@ export function LatexText({ content }: LatexTextProps) {
 
     // Regex to match block math $$...$$ or inline math $...$
     const regex = /(\$\$?)(.+?)\1/g;
-    
+
     const els = [];
     let lastIndex = 0;
     let match;
@@ -23,10 +23,10 @@ export function LatexText({ content }: LatexTextProps) {
       if (match.index > lastIndex) {
         els.push(<span key={`text-${lastIndex}`}>{content.substring(lastIndex, match.index)}</span>);
       }
-      
+
       const isBlock = match[1] === '$$';
       const mathExp = match[2];
-      
+
       if (isBlock) {
         els.push(
           <span className="block my-2 w-full text-center" key={`math-${match.index}`}>
@@ -36,10 +36,10 @@ export function LatexText({ content }: LatexTextProps) {
       } else {
         els.push(<InlineMath key={`math-${match.index}`} math={mathExp} />);
       }
-      
+
       lastIndex = regex.lastIndex;
     }
-    
+
     // Add remaining text
     if (lastIndex < content.length) {
       els.push(<span key={`text-${lastIndex}`}>{content.substring(lastIndex)}</span>);

@@ -1,25 +1,17 @@
-import type { RoomRaw, RoomListItem, RoomDetail } from "./types";
+import type { RoomRaw, RoomDetail } from "./types";
 import type { PaginatedResponse } from "../shared/pagination";
-import { getMockRooms, getMockRoomById } from "./mock";
-import { mapRoomToListItem, mapRoomToDetail } from "./mapper";
+import { getMockRoomById } from "./mock";
+import { mapRoomToDetail } from "./mapper";
+import { serverApiRequest } from "../server-client";
 
 
 export async function getRooms(
   page: number = 1,
   limit: number = 6
 ): Promise<PaginatedResponse<RoomRaw>> {
-  const allRooms = getMockRooms();
-  const totalItems = allRooms.length;
-  const start = (page - 1) * limit;
-  const items = allRooms.slice(start, start + limit);
-
-  return {
-    items,
-    totalItems,
-    currentPage: page,
-    totalPages: Math.ceil(totalItems / limit) || 1,
-    itemsPerPage: limit,
-  };
+  return serverApiRequest<PaginatedResponse<RoomRaw>>(
+    `/api/v1/rooms?page=${page}&limit=${limit}`
+  );
 }
 
 export async function getRoomById(
@@ -31,5 +23,5 @@ export async function getRoomById(
 }
 
 export async function getHotRooms(): Promise<RoomRaw[]> {
-  return getMockRooms();
+  return serverApiRequest<RoomRaw[]>("/api/v1/rooms/hot?limit=4");
 }

@@ -10,6 +10,7 @@ import (
 
 	"backend/config"
 	"backend/repositories"
+	"backend/utils"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -17,6 +18,7 @@ const (
 	defaultRoomExamPageLimit = 8
 	maxRoomExamPageLimit     = 50
 	roomExamCacheTTL         = 60 * time.Second
+	roomExamPayloadCacheTTL  = 60 * time.Second
 )
 
 var (
@@ -48,25 +50,92 @@ type RoomExamListResponse struct {
 }
 
 func GetRoomExams(input GetRoomExamsInput) (*RoomExamListResponse, error) {
-	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)
-	cacheKey := buildRoomExamCacheKey(input.RoomID, page, limit)
+	return buildRoomExamResponse(context.Background(), input)
+}
 
-	if cached := getCachedRoomExams(cacheKey); cached != nil {
-		return cached, nil
+func GetRoomExamsPayload(ctx context.Context, input GetRoomExamsInput) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
+	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)
+	payloadCacheKey := buildRoomExamPayloadCacheKey(input.RoomID, page, limit)
+	if payload := getCachedRoomExamPayload(ctx, payloadCacheKey); payload != nil {
+		return payload, nil
+	}
+
+	cacheKey := buildRoomExamCacheKey(input.RoomID, page, limit)
+
 	result, err, _ := roomExamGroup.Do(cacheKey, func() (interface{}, error) {
-		// Another request may have warmed the cache while we were waiting.
-		if cached := getCachedRoomExams(cacheKey); cached != nil {
-			return cached, nil
+		if payload := getCachedRoomExamPayload(ctx, payloadCacheKey); payload != nil {
+			return payload, nil
 		}
 
-		total, err := repositories.CountExamsByRoomID(input.RoomID)
+		releaseLock, err := acquireRoomExamReadThroughCacheLock(ctx, payloadCacheKey)
+		if err != nil {
+			return nil, err
+		}
+		if releaseLock != nil {
+			defer releaseLock()
+		}
+
+		if payload := getCachedRoomExamPayload(ctx, payloadCacheKey); payload != nil {
+			return payload, nil
+		}
+
+		response, err := buildRoomExamResponse(ctx, GetRoomExamsInput{
+			RoomID: input.RoomID,
+			Page:   page,
+			Limit:  limit,
+		})
 		if err != nil {
 			return nil, err
 		}
 
-		if total == 0 {
+		payload, err := json.Marshal(utils.SuccessResponse{
+			Status: "success",
+			Data:   response,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		cacheRoomExamPayload(ctx, payloadCacheKey, payload)
+		return payload, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result.([]byte), nil
+}
+
+func buildRoomExamResponse(ctx context.Context, input GetRoomExamsInput) (*RoomExamListResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)
+	cacheKey := buildRoomExamCacheKey(input.RoomID, page, limit)
+
+	if cached := getCachedRoomExams(ctx, cacheKey); cached != nil {
+		return cached, nil
+	}
+
+	result, err, _ := roomExamGroup.Do("data:"+cacheKey, func() (interface{}, error) {
+		if cached := getCachedRoomExams(ctx, cacheKey); cached != nil {
+			return cached, nil
+		}
+
+		rows, err := repositories.ListExamsByRoomID(ctx, input.RoomID, page, limit)
+		if err != nil {
+			return nil, err
+		}
+
+		totalItems := 0
+		if len(rows) > 0 {
+			totalItems = int(rows[0].TotalCount)
+		} else {
 			room, err := repositories.GetRoomByID(input.RoomID)
 			if err != nil {
 				return nil, err
@@ -74,15 +143,18 @@ func GetRoomExams(input GetRoomExamsInput) (*RoomExamListResponse, error) {
 			if room == nil {
 				return nil, ErrRoomNotFound
 			}
+
+			if page > 1 {
+				total, err := repositories.CountExamsByRoomID(ctx, input.RoomID)
+				if err != nil {
+					return nil, err
+				}
+				totalItems = int(total)
+			}
 		}
 
-		exams, err := repositories.ListExamsByRoomID(input.RoomID, page, limit)
-		if err != nil {
-			return nil, err
-		}
-
-		items := make([]ExamRoomListItem, 0, len(exams))
-		for _, exam := range exams {
+		items := make([]ExamRoomListItem, 0, len(rows))
+		for _, exam := range rows {
 			items = append(items, ExamRoomListItem{
 				ExamID:    exam.ExamID,
 				RoomID:    exam.RoomID,
@@ -94,19 +166,19 @@ func GetRoomExams(input GetRoomExamsInput) (*RoomExamListResponse, error) {
 		}
 
 		totalPages := 1
-		if total > 0 {
-			totalPages = int(math.Ceil(float64(total) / float64(limit)))
+		if totalItems > 0 {
+			totalPages = int(math.Ceil(float64(totalItems) / float64(limit)))
 		}
 
 		response := &RoomExamListResponse{
 			Items:        items,
-			TotalItems:   int(total),
+			TotalItems:   totalItems,
 			CurrentPage:  page,
 			TotalPages:   totalPages,
 			ItemsPerPage: limit,
 		}
 
-		cacheRoomExams(cacheKey, response)
+		cacheRoomExams(ctx, cacheKey, response)
 
 		return response, nil
 	})
@@ -134,12 +206,20 @@ func buildRoomExamCacheKey(roomID string, page, limit int) string {
 	return fmt.Sprintf("room-exams:%s:page:%d:limit:%d", roomID, page, limit)
 }
 
-func getCachedRoomExams(cacheKey string) *RoomExamListResponse {
+func buildRoomExamPayloadCacheKey(roomID string, page, limit int) string {
+	return fmt.Sprintf("room-exams-payload:%s:page:%d:limit:%d", roomID, page, limit)
+}
+
+func acquireRoomExamReadThroughCacheLock(ctx context.Context, cacheKey string) (func(), error) {
+	return acquireRedisLockWithRetry(ctx, "room-exams:cache-fill-lock:"+cacheKey)
+}
+
+func getCachedRoomExams(ctx context.Context, cacheKey string) *RoomExamListResponse {
 	if !config.RedisEnabled || config.RedisClient == nil {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
 	defer cancel()
 
 	payload, err := config.RedisClient.Get(ctx, cacheKey).Result()
@@ -155,7 +235,7 @@ func getCachedRoomExams(cacheKey string) *RoomExamListResponse {
 	return &result
 }
 
-func cacheRoomExams(cacheKey string, result *RoomExamListResponse) {
+func cacheRoomExams(ctx context.Context, cacheKey string, result *RoomExamListResponse) {
 	if !config.RedisEnabled || config.RedisClient == nil || result == nil {
 		return
 	}
@@ -165,8 +245,35 @@ func cacheRoomExams(cacheKey string, result *RoomExamListResponse) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
 	defer cancel()
 
 	_ = config.RedisClient.Set(ctx, cacheKey, payload, roomExamCacheTTL).Err()
+}
+
+func getCachedRoomExamPayload(ctx context.Context, cacheKey string) []byte {
+	if !config.RedisEnabled || config.RedisClient == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
+	defer cancel()
+
+	payload, err := config.RedisClient.Get(ctx, cacheKey).Bytes()
+	if err != nil || len(payload) == 0 {
+		return nil
+	}
+
+	return payload
+}
+
+func cacheRoomExamPayload(ctx context.Context, cacheKey string, payload []byte) {
+	if !config.RedisEnabled || config.RedisClient == nil || len(payload) == 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
+	defer cancel()
+
+	_ = config.RedisClient.Set(ctx, cacheKey, payload, roomExamPayloadCacheTTL).Err()
 }

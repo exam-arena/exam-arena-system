@@ -52,8 +52,8 @@ func ConnectDatabase() {
 	}
 
 	// Cấu hình connection pool
-	sqlDB.SetMaxOpenConns(getEnvInt("DB_MAX_OPEN_CONNS", 40))
-	sqlDB.SetMaxIdleConns(getEnvInt("DB_MAX_IDLE_CONNS", 20))
+	sqlDB.SetMaxOpenConns(getEnvInt("DB_MAX_OPEN_CONNS", 100))
+	sqlDB.SetMaxIdleConns(getEnvInt("DB_MAX_IDLE_CONNS", 40))
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 	sqlDB.SetConnMaxIdleTime(2 * time.Minute)
 
