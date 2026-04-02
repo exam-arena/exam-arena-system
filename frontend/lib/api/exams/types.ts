@@ -27,12 +27,15 @@ export interface SectionRaw {
 export interface ExamRaw {
   exam_id: string;
   room_id: string;
+  room_name?: string;
   title: string;
   type: string;
   capacity: number;
   duration: number;
-  start_time: string;
-  sections: SectionRaw[];
+  start_time?: string;
+  total_questions?: number;
+  participant_count?: number;
+  sections?: SectionRaw[];
 }
 
 export interface ExamRoomListItemRaw {
@@ -58,6 +61,8 @@ export interface ExamListItem {
 }
 
 export interface ExamDetail extends ExamListItem {
+  roomName: string;
   sections: SectionRaw[];
   startTime: string;
+  participantCount: number;
 }

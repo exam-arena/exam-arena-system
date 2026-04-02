@@ -47,22 +47,39 @@ export async function apiRequest<T>(
       credentials: "include",
     });
 
-    const json = await response.json();
+    const raw = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+    const isJSON = contentType.toLowerCase().includes("application/json");
+    const json = raw && isJSON ? JSON.parse(raw) : null;
 
     if (!response.ok) {
-      const errorData = json as ApiErrorResponse;
+      const errorData = json as ApiErrorResponse | null;
       throw new ApiError(
-        errorData.error?.code || "UNKNOWN_ERROR",
-        errorData.error?.message || "Something went wrong",
+        errorData?.error?.code || "UNKNOWN_ERROR",
+        errorData?.error?.message ||
+          raw ||
+          `Request failed with status ${response.status}`,
         response.status,
-        errorData.error?.details
+        errorData?.error?.details
       );
     }
 
-    const successData = json as ApiSuccessResponse<T>;
+    const successData = json as ApiSuccessResponse<T> | null;
+    if (!successData || successData.status !== "success") {
+      throw new ApiError(
+        "INVALID_RESPONSE",
+        raw && !isJSON ? raw : "Server returned an invalid response",
+        response.status
+      );
+    }
+
     return successData.data;
   } catch (error) {
     if (error instanceof ApiError) throw error;
+
+    if (error instanceof SyntaxError) {
+      throw new ApiError("INVALID_RESPONSE", "Server returned an invalid response", 0);
+    }
 
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ApiError("TIMEOUT", "Request timed out", 408);

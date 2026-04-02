@@ -1,49 +1,54 @@
-import type { AttemptData, AttemptResultData, AttemptReviewData } from "./types";
-import {
-  getMockAttemptById,
-  getMockExamForAttempt,
-  getMockUserForAttempt,
-  getMockRoomForExam,
-  getMockFallbackUserAnswers,
-} from "./mock";
-import {
-  mapAttemptData,
-  mapAttemptResult,
-  mapAttemptReview,
-} from "./mapper";
+import type {
+  AttemptData,
+  AttemptResultData,
+  AttemptReviewData,
+  SaveAttemptAnswerInput,
+  SaveAttemptAnswersData,
+  StartAttemptData,
+  SubmitAttemptData,
+} from "./types";
+import { apiRequest } from "../client";
 
 export async function getAttempt(
   attemptId: string
 ): Promise<AttemptData> {
-  const attempt = getMockAttemptById(attemptId)!;
-  const exam = getMockExamForAttempt(attempt.exam_id);
-  const user = getMockUserForAttempt(attempt.user_id);
+  return apiRequest<AttemptData>(`/api/v1/attempts/${attemptId}`);
+}
 
-  return mapAttemptData(exam, user);
+export async function startAttempt(
+  examId: string
+): Promise<StartAttemptData> {
+  return apiRequest<StartAttemptData>(`/api/v1/exams/${examId}/attempts`, {
+    method: "POST",
+  });
+}
+
+export async function saveAttemptAnswers(
+  attemptId: string,
+  answers: SaveAttemptAnswerInput[]
+): Promise<SaveAttemptAnswersData> {
+  return apiRequest<SaveAttemptAnswersData>(`/api/v1/attempts/${attemptId}/answers`, {
+    method: "PUT",
+    body: { answers },
+  });
+}
+
+export async function submitAttempt(
+  attemptId: string
+): Promise<SubmitAttemptData> {
+  return apiRequest<SubmitAttemptData>(`/api/v1/attempts/${attemptId}/submit`, {
+    method: "POST",
+  });
 }
 
 export async function getAttemptResult(
   attemptId: string
 ): Promise<AttemptResultData> {
-  const attempt = getMockAttemptById(attemptId)!;
-  const exam = getMockExamForAttempt(attempt.exam_id);
-  const user = getMockUserForAttempt(attempt.user_id);
-  const room = getMockRoomForExam(exam.room_id);
-
-  return mapAttemptResult(attempt, exam, user, room);
+  return apiRequest<AttemptResultData>(`/api/v1/attempts/${attemptId}/result`);
 }
 
 export async function getAttemptReview(
   attemptId: string
 ): Promise<AttemptReviewData> {
-  const attempt = getMockAttemptById(attemptId)!;
-  const exam = getMockExamForAttempt(attempt.exam_id);
-  const user = getMockUserForAttempt(attempt.user_id);
-
-  return mapAttemptReview(
-    attempt,
-    exam,
-    user,
-    getMockFallbackUserAnswers()
-  );
+  return apiRequest<AttemptReviewData>(`/api/v1/attempts/${attemptId}/review`);
 }

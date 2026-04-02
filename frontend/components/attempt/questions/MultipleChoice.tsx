@@ -21,8 +21,8 @@ export function MultipleChoice({ options, name, value, onChange, mode = "exam", 
                 let btnClass = "bg-cornflowerblue-200 border-transparent hover:bg-mediumslateblue/10 text-mediumslateblue";
                 if (mode === "review") {
                     if (isChecked && isCorrect) btnClass = "bg-mediumslateblue text-white border-mediumslateblue"; 
-                    else if (!isChecked && isCorrect) btnClass = "bg-green-100 border-green-500 text-green-700 font-bold bg-opacity-100"; 
-                    else if (isWrongSelection) btnClass = "bg-red-500 border-red-500 text-white font-bold"; 
+                    else if (!isChecked && isCorrect) btnClass = "bg-green-100/90 border-green-500 text-green-700 font-bold"; 
+                    else if (isWrongSelection) btnClass = "bg-red-100/90 border-red-500 text-red-700 font-bold"; 
                     else btnClass = "bg-slate-50 border-slate-200 text-slate-500"; 
                 } else {
                     if (isChecked) btnClass = "bg-mediumslateblue text-white border-mediumslateblue";

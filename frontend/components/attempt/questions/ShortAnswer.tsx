@@ -54,9 +54,9 @@ export function ShortAnswer({ name, value = "", onChange, mode = "exam", correct
                         if (value === "") {
                             bgClass = "bg-slate-50 text-slate-500 border-slate-200 focus:ring-0";
                         } else if (value === correctAnswer) {
-                            bgClass = "bg-mediumslateblue text-white border-mediumslateblue font-bold";
+                            bgClass = "bg-green-100/90 text-green-700 border-green-500 font-bold";
                         } else {
-                            bgClass = "bg-red-500 text-white border-red-500 font-bold";
+                            bgClass = "bg-red-100/90 text-red-700 border-red-500 font-bold";
                         }
                     }
 
