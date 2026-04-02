@@ -10,13 +10,13 @@ export function BrandedLoadingScreen({
   return (
     <div className="min-h-screen w-full bg-white">
       <div className="flex min-h-screen w-full flex-col items-center justify-center px-6 text-center">
-        <div className="mb-8 text-[2rem] font-extrabold tracking-[0.18em] text-[#004edc] sm:text-[2.5rem]">
+        <div className="mb-8 text-[2rem] font-extrabold tracking-[0.18em] text-mediumslateblue sm:text-[2.5rem]">
           ExamArena
         </div>
         <div className="h-2 w-full max-w-md overflow-hidden rounded-full bg-[#dbe8ff]">
-          <div className="loading-bar h-full w-1/2 rounded-full bg-[#004edc]" />
+          <div className="loading-bar h-full w-1/2 rounded-full bg-mediumslateblue" />
         </div>
-        <p className="mt-5 text-base font-medium text-[#004edc] opacity-80 sm:text-lg">
+        <p className="mt-5 text-base font-medium text-mediumslateblue opacity-80 sm:text-lg">
           {message}
         </p>
       </div>
