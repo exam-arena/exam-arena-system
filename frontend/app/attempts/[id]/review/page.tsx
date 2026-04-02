@@ -9,6 +9,7 @@ import { TrueFalse } from "@/components/attempt/questions/TrueFalse";
 import { ShortAnswer } from "@/components/attempt/questions/ShortAnswer";
 import { ExplanationCard } from "@/components/attempt/content/ExplanationCard";
 import { LatexText } from "@/components/shared/LatexText";
+import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getAttemptReview } from "@/lib/api/attempts/api";
@@ -210,11 +211,7 @@ export default function ReviewPage() {
     }
 
     if (isLoading || !reviewData) {
-        return (
-            <div className="min-h-screen w-full flex items-center justify-center font-medium text-[#004edc]">
-                Đang tải kết quả bài thi...
-            </div>
-        );
+    return <BrandedLoadingScreen message="Đang tải kết quả bài thi..." />;
     }
 
     const { title, userAnswers, user } = reviewData;

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import { Question } from "@/components/attempt/content/Question";
 import { MultipleChoice } from "@/components/attempt/questions/MultipleChoice";
 import { TrueFalse } from "@/components/attempt/questions/TrueFalse";
 import { ShortAnswer } from "@/components/attempt/questions/ShortAnswer";
+import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 import { LatexText } from "@/components/shared/LatexText";
 import { ExplanationCard } from "@/components/attempt/content/ExplanationCard";
 import {
@@ -280,7 +281,7 @@ export default function AttemptPage() {
       })
       .catch(() => {
         if (!isMounted) return;
-        setLoadError("Không thể tải dữ liệu bài thi. Vui lòng thử lại.");
+        setLoadError("Kh không thể tải dữ liệu bài thi. Vui lòng thử lại.");
       })
       .finally(() => {
         if (!isMounted) return;
@@ -918,7 +919,7 @@ export default function AttemptPage() {
       }
     }
 
-    const message = "Lưu thất bại tạm thời. Hệ thống sẽ tự thử lại.";
+    const message = "Lưu thất bại tạm thời. Hệ thống sẽ tự động thử lại.";
     setSaveError(message);
     setRetryingAnswers((prev) => {
       const next = { ...prev };
@@ -1021,7 +1022,7 @@ export default function AttemptPage() {
     questions.forEach((question) => {
       if (question.parent_id) return;
 
-      const cleanContent = question.content.replace(/^Phần\s+[IVX]+\.\s*/i, "");
+      const cleanContent = question.content.replace(/^Pháº§n\s+[IVX]+\.\s*/i, "");
       const item: GroupedQuestion = {
         id: question.question_id,
         type: question.type,
@@ -1212,11 +1213,7 @@ export default function AttemptPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center font-medium text-[#004edc]">
-        Đang tải dữ liệu bài thi...
-      </div>
-    );
+    return <BrandedLoadingScreen message="Đang tải dữ liệu bài thi..." />;
   }
 
   if (loadError || !examData) {
@@ -1391,7 +1388,7 @@ export default function AttemptPage() {
           <ExplanationCard
             correctAnswerText={currentQuestion.correct_answer}
             explanation={
-              currentQuestion.explanation || "Lời giải chi tiết cho câu hỏi này chưa có sẵn."
+              currentQuestion.explanation || "Lời giải chi tiết cho câu hỏi này chưa có sẳn."
             }
           />
         )}
@@ -1415,7 +1412,7 @@ export default function AttemptPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận rời bài thi</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn đang trong thời gian làm bài. Nếu rời khỏi màn hình này, cách antoàn là nộp bài ngay bây giờ. Hoặc bạn có thể quay lại tiếp tục làm bài.
+              Bạn đang trong thời gian làm bài. Nếu rời khỏi màn hình này, cách an toàn là nộp bài ngay bây giờ. Hoặc bạn có thể quay lại tiếp tục làm bài.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

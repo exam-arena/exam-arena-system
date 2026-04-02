@@ -17,6 +17,7 @@ import {
 import { getAttemptResult } from "@/lib/api/attempts/api";
 import type { AttemptResultData } from "@/lib/api/attempts/types";
 import { formatExamType } from "@/lib/api/exams/mapper";
+import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 
 export default function ExamResultPage() {
   const params = useParams();
@@ -82,11 +83,7 @@ export default function ExamResultPage() {
   }
 
   if (isLoading) {
-    return (
-      <main className="min-h-screen bg-white flex items-center justify-center text-[#004edc] font-medium">
-        Đang tải kết quả bài thi...
-      </main>
-    );
+  return <BrandedLoadingScreen message="Đang tải kết quả bài thi..." />;
   }
 
   if (loadError || !data) {
