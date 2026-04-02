@@ -120,7 +120,8 @@ export default function AttemptPage() {
   const [fullscreenCountdown, setFullscreenCountdown] = useState(10);
   const [focusViolationCount, setFocusViolationCount] = useState(0);
   const [isTabBlocked, setIsTabBlocked] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [attemptClockMs, setAttemptClockMs] = useState(0);
+  const [attemptServerOffsetMs, setAttemptServerOffsetMs] = useState<number | null>(null);
 
   const answersRef = useRef<Record<string, string>>({});
   const dirtyAnswersRef = useRef<Record<string, string>>({});
@@ -203,6 +204,11 @@ export default function AttemptPage() {
     const persistedLock = parseAttemptTabLockPayload(window.localStorage.getItem(lockKey));
     const acquired = persistedLock?.tabId === tabIdRef.current;
     setIsTabBlocked(!acquired);
+    if (!acquired) {
+      setIsLeaveDialogOpen(false);
+      setIsFullscreenWarningOpen(false);
+      setIsFocusViolationDialogOpen(false);
+    }
     return acquired;
   }, [id]);
 
@@ -277,11 +283,24 @@ export default function AttemptPage() {
           router.replace(`/attempts/${id}/result`);
           return;
         }
+
+        if (hydratedAttemptIdRef.current !== res.attempt_id) {
+          const restoredAnswers = res.user_answers ?? {};
+          setAnswers(restoredAnswers);
+          setDirtyAnswers({});
+          setSavedAnswers(restoredAnswers);
+          hydratedAttemptIdRef.current = res.attempt_id ?? null;
+        }
+
+        setAttemptClockMs(Date.now());
+        setAttemptServerOffsetMs(
+          res.server_time ? Date.parse(res.server_time) - Date.now() : null
+        );
         setExamData(res);
       })
       .catch(() => {
         if (!isMounted) return;
-        setLoadError("Kh không thể tải dữ liệu bài thi. Vui lòng thử lại.");
+        setLoadError("Không thể tải dữ liệu bài thi. Vui lòng thử lại.");
       })
       .finally(() => {
         if (!isMounted) return;
@@ -294,43 +313,19 @@ export default function AttemptPage() {
   }, [id, router]);
 
   useEffect(() => {
-    if (!examData?.attempt_id) {
-      hydratedAttemptIdRef.current = null;
-      return;
-    }
-
-    if (hydratedAttemptIdRef.current === examData.attempt_id) {
-      return;
-    }
-
-    const restoredAnswers = examData.user_answers ?? {};
-    setAnswers(restoredAnswers);
-    setDirtyAnswers({});
-    setSavedAnswers(restoredAnswers);
-    hydratedAttemptIdRef.current = examData.attempt_id;
-  }, [examData?.attempt_id, examData?.user_answers]);
-
-  useEffect(() => {
     const startedAt = examData?.started_at ? Date.parse(examData.started_at) : NaN;
     const serverTime = examData?.server_time ? Date.parse(examData.server_time) : NaN;
     const durationSeconds = examData?.duration_seconds ?? 0;
 
     if (!Number.isFinite(startedAt) || !Number.isFinite(serverTime) || durationSeconds <= 0) {
-      setRemainingSeconds(null);
       stopAttemptTimeSync();
       return;
     }
 
-    const endAtMs = startedAt + durationSeconds * 1000;
-    const serverOffsetMs = serverTime - Date.now();
-    const computeRemainingSeconds = () =>
-      Math.max(0, Math.ceil((endAtMs - (Date.now() + serverOffsetMs)) / 1000));
-
-    setRemainingSeconds(computeRemainingSeconds());
     stopAttemptTimeSync();
 
     attemptTimeTickRef.current = window.setInterval(() => {
-      setRemainingSeconds(computeRemainingSeconds());
+      setAttemptClockMs(Date.now());
     }, 1000);
 
     return () => {
@@ -342,6 +337,23 @@ export default function AttemptPage() {
     examData?.started_at,
     stopAttemptTimeSync,
   ]);
+
+  const remainingSeconds = useMemo(() => {
+    const startedAt = examData?.started_at ? Date.parse(examData.started_at) : NaN;
+    const durationSeconds = examData?.duration_seconds ?? 0;
+
+    if (
+      !Number.isFinite(startedAt) ||
+      durationSeconds <= 0 ||
+      attemptServerOffsetMs === null ||
+      attemptClockMs === 0
+    ) {
+      return null;
+    }
+
+    const endAtMs = startedAt + durationSeconds * 1000;
+    return Math.max(0, Math.ceil((endAtMs - (attemptClockMs + attemptServerOffsetMs)) / 1000));
+  }, [attemptClockMs, attemptServerOffsetMs, examData]);
 
   useEffect(() => {
     if (!id || !examData?.attempt_id || isTabBlocked) {
@@ -360,6 +372,10 @@ export default function AttemptPage() {
           return;
         }
 
+        setAttemptClockMs(Date.now());
+        setAttemptServerOffsetMs(
+          latest.server_time ? Date.parse(latest.server_time) - Date.now() : null
+        );
         setExamData((prev) => {
           if (!prev) {
             return latest;
@@ -441,14 +457,6 @@ export default function AttemptPage() {
       }
     };
   }, [releaseAttemptTabLock, stopAttemptTabHeartbeat, stopAttemptTimeSync]);
-
-  useEffect(() => {
-    if (isTabBlocked) {
-      setIsLeaveDialogOpen(false);
-      setIsFullscreenWarningOpen(false);
-      setIsFocusViolationDialogOpen(false);
-    }
-  }, [isTabBlocked]);
 
   useEffect(() => {
     const markFocusViolationStart = () => {
@@ -722,21 +730,21 @@ export default function AttemptPage() {
     };
   }, []);
 
-  const clearAutosaveTimer = () => {
+  const clearAutosaveTimer = useCallback(() => {
     if (autosaveTimerRef.current !== null) {
       window.clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const clearRetryTimer = () => {
+  const clearRetryTimer = useCallback(() => {
     if (retryTimerRef.current !== null) {
       window.clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const clearQuestionFeedback = (questionIds: string[]) => {
+  const clearQuestionFeedback = useCallback((questionIds: string[]) => {
     if (questionIds.length === 0) return;
 
     setSavingAnswers((prev) => {
@@ -770,9 +778,9 @@ export default function AttemptPage() {
       });
       return next;
     });
-  };
+  }, []);
 
-  const markQuestionsSaving = (questionIds: string[]) => {
+  const markQuestionsSaving = useCallback((questionIds: string[]) => {
     clearRetryTimer();
 
     setSavingAnswers((prev) => {
@@ -790,9 +798,9 @@ export default function AttemptPage() {
       });
       return next;
     });
-  };
+  }, [clearRetryTimer]);
 
-  const handleSaveSuccess = (pendingAnswers: Record<string, string>) => {
+  const handleSaveSuccess = useCallback((pendingAnswers: Record<string, string>) => {
     const questionIds = Object.keys(pendingAnswers);
 
     setSaveState("saved");
@@ -819,9 +827,9 @@ export default function AttemptPage() {
       }
       return next;
     });
-  };
+  }, [clearQuestionFeedback]);
 
-  const scheduleRetry = (questionIds: string[]) => {
+  const scheduleRetry = useCallback((questionIds: string[]) => {
     if (questionIds.length === 0) return;
 
     clearRetryTimer();
@@ -843,9 +851,9 @@ export default function AttemptPage() {
       retryTimerRef.current = null;
       setDirtyAnswers((prev) => ({ ...prev }));
     }, delay);
-  };
+  }, [clearRetryTimer]);
 
-  const handleSaveFailure = (error: unknown, pendingAnswers: Record<string, string>) => {
+  const handleSaveFailure = useCallback((error: unknown, pendingAnswers: Record<string, string>) => {
     const questionIds = Object.keys(pendingAnswers);
 
     setSaveState("error");
@@ -930,9 +938,9 @@ export default function AttemptPage() {
     });
     scheduleRetry(questionIds);
     return false;
-  };
+  }, [scheduleRetry]);
 
-  const flushPendingAnswersNow = async (snapshot?: Record<string, string>) => {
+  const flushPendingAnswersNow = useCallback(async (snapshot?: Record<string, string>) => {
     if (!examData?.attempt_id || mode !== "exam") return true;
     if (isTabBlocked) return false;
 
@@ -959,7 +967,15 @@ export default function AttemptPage() {
     } catch (error) {
       return handleSaveFailure(error, pendingAnswers);
     }
-  };
+  }, [
+    clearAutosaveTimer,
+    examData,
+    handleSaveFailure,
+    handleSaveSuccess,
+    isTabBlocked,
+    markQuestionsSaving,
+    mode,
+  ]);
 
   useEffect(() => {
     if (!examData?.attempt_id || mode !== "exam") return;
@@ -1001,7 +1017,16 @@ export default function AttemptPage() {
     return () => {
       clearAutosaveTimer();
     };
-  }, [dirtyAnswers, examData?.attempt_id, isTabBlocked, mode]);
+  }, [
+    clearAutosaveTimer,
+    dirtyAnswers,
+    examData?.attempt_id,
+    handleSaveFailure,
+    handleSaveSuccess,
+    isTabBlocked,
+    markQuestionsSaving,
+    mode,
+  ]);
 
   const { durationMinutes, questions } = examData || {};
 
@@ -1146,7 +1171,7 @@ export default function AttemptPage() {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!examData?.attempt_id || submitState === "submitting" || isTabBlocked) return;
 
     setSubmitState("submitting");
@@ -1177,7 +1202,16 @@ export default function AttemptPage() {
     }
 
     router.replace(`/attempts/${id}/result`);
-  };
+  }, [
+    clearAutosaveTimer,
+    clearRetryTimer,
+    examData,
+    flushPendingAnswersNow,
+    id,
+    isTabBlocked,
+    router,
+    submitState,
+  ]);
 
   useEffect(() => {
     submitAttemptFlowRef.current = handleSubmit;
@@ -1225,7 +1259,7 @@ export default function AttemptPage() {
         <button
           type="button"
           onClick={() => router.refresh()}
-          className="rounded-full bg-[#004edc] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#003bb0]"
+          className="rounded-full bg-mediumslateblue px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#003bb0]"
         >
           Thử lại
         </button>

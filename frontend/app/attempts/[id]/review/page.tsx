@@ -223,10 +223,10 @@ export default function ReviewPage() {
             </div>
 
             <div className="flex-1 w-full grid grid-cols-1 lg:grid-cols-[1fr_294px] gap-x-6 px-4 md:px-12 lg:px-24 py-8 lg:py-10 box-border font-sans items-start">
-                <div className="flex flex-col lg:col-[1] row-[1] w-full rounded-num-30 bg-white shadow-[0px_2px_8px_rgba(146,184,255,0.2)] mb-10 pb-6">
-                    <div className="p-6 md:p-8 flex flex-col gap-[3rem]">
+                <div className="flex flex-col lg:col-1 row-1 w-full rounded-num-30 bg-white shadow-[0px_2px_8px_rgba(146,184,255,0.2)] mb-10 pb-6">
+                    <div className="p-6 md:p-8 flex flex-col gap-12">
                         <div className="w-full flex items-center justify-between pb-4 border-b border-aliceblue">
-                            <b className="relative leading-[1.5rem] text-2xl text-mediumslateblue">
+                            <b className="relative leading-6 text-2xl text-mediumslateblue">
                                 {title} - Kết quả bài thi
                             </b>
                         </div>
@@ -237,23 +237,23 @@ export default function ReviewPage() {
                             }
 
                             return (
-                                <div key={section.title} className="w-full flex flex-col items-start gap-[1.5rem]">
-                                    <div className="flex flex-col items-start gap-[0.25rem]">
-                                        <b className="relative leading-[2rem] text-mediumslateblue text-2xl">
+                                <div key={section.title} className="w-full flex flex-col items-start gap-6">
+                                    <div className="flex flex-col items-start gap-1">
+                                        <b className="relative leading-8 text-mediumslateblue text-2xl">
                                             {section.title}
                                         </b>
-                                        <div className="relative text-[1rem] leading-[1.75rem] text-cornflowerblue-100">
+                                        <div className="relative text-[1rem] leading-7 text-cornflowerblue-100">
                                             {section.desc}
                                         </div>
                                     </div>
 
-                                    <div className="w-full flex flex-col items-start gap-[3rem] text-[1rem]">
+                                    <div className="w-full flex flex-col items-start gap-12 text-[1rem]">
                                         {section.questions.map((currentQ) => (
                                             <div
                                                 key={currentQ.id}
                                                 className="w-full border-b border-aliceblue pb-8 last:border-0 relative"
                                             >
-                                                <div id={`question-${currentQ.globalNum}`} className="absolute -top-[100px]" />
+                                                <div id={`question-${currentQ.globalNum}`} className="absolute -top-25" />
 
                                                 <Question
                                                     number={currentQ.globalNum}
@@ -315,7 +315,7 @@ export default function ReviewPage() {
                     </div>
                 </div>
 
-                <aside className="hidden lg:flex flex-col gap-6 col-[2] row-[1] sticky top-[7rem]">
+                <aside className="hidden lg:flex flex-col gap-6 col-2 row-1 sticky top-28">
                     <Sidebar
                         time="--:--"
                         totalQuestions={allQuestionsArray.length}
