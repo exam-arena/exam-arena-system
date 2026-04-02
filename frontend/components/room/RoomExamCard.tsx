@@ -12,7 +12,7 @@ export default function RoomExamCard({ exam_id, title, type = "practice", durati
 
     return (
         <div className="shadow-sm hover:shadow-md transition-shadow rounded-3xl bg-white overflow-hidden flex flex-col items-start p-4 lg:p-6 gap-6 border border-blue-50">
-            <div className="w-full flex flex-col items-start gap-4 flex-grow">
+            <div className="w-full flex flex-col items-start gap-4 grow">
                 {/* Badges */}
                 <div className="flex items-start gap-2">
                     <div className="rounded-full bg-[#EAF2FF] text-[#004EDC] text-xs font-semibold py-1 px-3">
@@ -22,7 +22,7 @@ export default function RoomExamCard({ exam_id, title, type = "practice", durati
 
                 {/* Title */}
                 <div className="w-full flex justify-start text-left">
-                    <b className="text-base sm:text-lg text-[#004EDC] leading-tight line-clamp-2 min-h-[44px]">
+                    <b className="text-base sm:text-lg text-[#004EDC] leading-tight line-clamp-2 min-h-11">
                         {title}
                     </b>
                 </div>

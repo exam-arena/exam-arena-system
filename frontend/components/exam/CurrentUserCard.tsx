@@ -22,29 +22,29 @@ export default function CurrentUserCard() {
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="w-full lg:w-[400px] flex flex-col items-center justify-start text-[#004edc]">
+    <div className="w-full lg:w-100 flex flex-col items-center justify-start text-mediumslateblue">
       <div className="w-full shadow-sm hover:shadow-md transition-shadow rounded-3xl bg-white flex flex-col items-center py-8 px-6 gap-6 border border-blue-50">
         <div className="self-stretch flex flex-col items-center gap-4">
-          <h2 className="font-bold text-lg text-[#92b8ff]">Thông tin thí sinh</h2>
+          <h2 className="font-bold text-lg text-cornflowerblue-100">Thông tin thí sinh</h2>
 
           <div className="flex flex-col items-center gap-3">
             <div className="w-20 h-20 rounded-full bg-[#e7f0ff] flex items-center justify-center overflow-hidden border-2 border-[#EAF2FF]">
-              <span className="text-3xl text-[#004edc] font-bold">{initial}</span>
+              <span className="text-3xl text-mediumslateblue font-bold">{initial}</span>
             </div>
             <b className="text-xl">{user.username}</b>
           </div>
 
-          <div className="self-stretch h-[1px] bg-[#EAF2FF] w-full" />
+          <div className="self-stretch h-px bg-[#EAF2FF] w-full" />
 
-          <div className="self-stretch grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 text-[15px] w-full max-w-[280px] mx-auto">
-            <div className="flex flex-col items-start gap-4 font-bold text-[#004edc]">
+          <div className="self-stretch grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 text-[15px] w-full max-w-70 mx-auto">
+            <div className="flex flex-col items-start gap-4 font-bold text-mediumslateblue">
               <p>Họ và tên:</p>
               <p>Email:</p>
               <p>Vai trò:</p>
             </div>
-            <div className="flex flex-col items-end gap-4 text-right text-[#004edc] font-medium">
+            <div className="flex flex-col items-end gap-4 text-right text-mediumslateblue font-medium">
               <p>{displayName}</p>
-              <p className="truncate max-w-[150px]" title={user.email}>
+              <p className="truncate max-w-37.5" title={user.email}>
                 {user.email}
               </p>
               <p className="capitalize">{formatRole(user.role)}</p>
@@ -55,7 +55,7 @@ export default function CurrentUserCard() {
         <div className="flex items-start text-sm mt-2 w-full">
           <Link
             href="/profile"
-            className="w-full rounded-full bg-white border border-[#EAF2FF] text-[#92b8ff] hover:bg-[#F6FBFF] hover:border-[#004edc] hover:text-[#004edc] transition-colors flex items-center justify-center py-2.5 px-5 font-bold"
+            className="w-full rounded-full bg-white border border-[#EAF2FF] text-cornflowerblue-100 hover:bg-[#F6FBFF] hover:border-mediumslateblue hover:text-mediumslateblue transition-colors flex items-center justify-center py-2.5 px-5 font-bold"
           >
             Xem Profile
           </Link>

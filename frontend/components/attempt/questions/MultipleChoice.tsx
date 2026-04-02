@@ -31,7 +31,7 @@ export function MultipleChoice({ options, name, value, onChange, mode = "exam", 
                 return (
                     <label
                         key={opt.id}
-                        className={`rounded-num-30 py-3 px-5 transition-all border flex items-center gap-2 min-h-[3rem] ${
+                        className={`rounded-num-30 py-3 px-5 transition-all border flex items-center gap-2 min-h-12 ${
                             mode === "review" ? "cursor-default" : "cursor-pointer"
                         } ${btnClass}`}
                     >
@@ -44,10 +44,10 @@ export function MultipleChoice({ options, name, value, onChange, mode = "exam", 
                             disabled={mode === "review"}
                             className="hidden"
                         />
-                        <b className="text-base leading-[1.75rem] whitespace-nowrap shrink-0">
+                        <b className="text-base leading-7 whitespace-nowrap shrink-0">
                             {opt.id}.
                         </b>
-                        <div className={`text-base leading-[1.75rem] break-words ${isChecked ? "font-bold" : "font-normal"}`}>
+                        <div className={`text-base leading-7 wrap-break-word ${isChecked ? "font-bold" : "font-normal"}`}>
                             <LatexText content={opt.text} />
                         </div>
                     </label>

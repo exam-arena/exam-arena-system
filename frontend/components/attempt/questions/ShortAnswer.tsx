@@ -45,7 +45,7 @@ export function ShortAnswer({ name, value = "", onChange, mode = "exam", correct
 
     return (
         <div className="flex flex-col gap-3 w-full">
-            <b className="text-base leading-[1.75rem] text-mediumslateblue font-bold">Câu trả lời:</b>
+            <b className="text-base leading-7 text-mediumslateblue font-bold">Câu trả lời:</b>
             <div className="flex gap-0" role="group" aria-label={name}>
                 {[0, 1, 2, 3].map((i) => {
                     let bgClass = `bg-white text-mediumslateblue focus:border-mediumslateblue focus:ring-mediumslateblue/30 ${chars[i] ? "font-bold" : ""

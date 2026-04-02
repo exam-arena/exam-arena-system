@@ -32,42 +32,42 @@ export default async function ExamInfoPage({
       <main className="min-h-screen bg-white flex flex-col w-full font-roboto">
         <Header />
 
-        <div className="bg-[#F6FBFF] w-full overflow-hidden py-12 shadow-sm border-t border-blue-50 flex-grow">
-          <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px] grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8">
+        <div className="bg-[#F6FBFF] w-full overflow-hidden py-12 shadow-sm border-t border-blue-50 grow">
+          <div className="w-full max-w-360 mx-auto px-4 sm:px-6 md:px-24 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8">
             <div className="w-full overflow-hidden flex flex-col items-start gap-12">
               <div className="self-stretch flex flex-col items-start gap-6">
                 <Breadcrumb>
-                  <BreadcrumbList className="text-sm font-medium text-[#92b8ff]">
+                  <BreadcrumbList className="text-sm font-medium text-cornflowerblue-100">
                     <BreadcrumbItem>
                       <BreadcrumbLink
                         asChild
-                        className="hover:text-[#004edc]"
+                        className="hover:text-mediumslateblue"
                       >
                         <Link href="/">Trang chủ</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
-                    <BreadcrumbSeparator className="text-[#92b8ff]" />
+                    <BreadcrumbSeparator className="text-cornflowerblue-100" />
                     <BreadcrumbItem>
                       <BreadcrumbLink
                         asChild
-                        className="hover:text-[#004edc] uppercase"
+                        className="hover:text-mediumslateblue uppercase"
                       >
                         <Link href={`/rooms/${exam.roomId}`}>{exam.roomName}</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
-                    <BreadcrumbSeparator className="text-[#92b8ff]" />
+                    <BreadcrumbSeparator className="text-cornflowerblue-100" />
                     <BreadcrumbItem>
-                      <BreadcrumbPage className="text-[#004edc] uppercase">
+                      <BreadcrumbPage className="text-mediumslateblue uppercase">
                         {exam.title}
                       </BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
 
-                <div className="self-stretch flex flex-col items-start gap-6 text-xl text-[#004edc]">
+                <div className="self-stretch flex flex-col items-start gap-6 text-xl text-mediumslateblue">
                   <div className="flex flex-col items-start gap-3 text-base">
                     <div className="flex items-start gap-3">
-                      <div className="rounded-full bg-[#EAF2FF] text-[#004edc] flex items-center justify-center py-1 px-4">
+                      <div className="rounded-full bg-[#EAF2FF] text-mediumslateblue flex items-center justify-center py-1 px-4">
                         <div className="font-semibold text-sm capitalize">{exam.typeLabel}</div>
                       </div>
                     </div>

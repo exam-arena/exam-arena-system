@@ -23,15 +23,15 @@ export default async function ExamsPage({
             <Header />
             <Banner />
 
-            <section className="w-full bg-[#F6FBFF] py-10 md:py-16 flex-grow border-t border-blue-50">
-                <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px]">
+            <section className="w-full bg-[#F6FBFF] py-10 md:py-16 grow border-t border-blue-50">
+                <div className="w-full max-w-360 mx-auto px-4 sm:px-6 md:px-24">
 
                     {/* Header Page */}
                     <div className="flex flex-col items-center gap-2 mb-10 md:mb-14">
                         <h1 className="text-2xl sm:text-3xl md:text-[40px] font-bold text-[#004EDC] text-center">
                             DANH SÁCH ĐỀ THI TUYỂN CHỌN
                         </h1>
-                        <p className="text-sm md:text-lg text-[#92B8FF] text-center max-w-[600px]">
+                        <p className="text-sm md:text-lg text-[#92B8FF] text-center max-w-150">
                             Tuyển chọn đề thi hay, chuẩn cấu trúc, có lời giải chi tiết.
                         </p>
                     </div>
