@@ -54,14 +54,14 @@ export default function StartExamDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg rounded-[30px] border-none bg-white p-8 text-center shadow-[0px_2px_8px_rgba(146,184,255,0.2)] outline-none sm:p-12">
+      <DialogContent className="sm:max-w-lg rounded-num-30 border-none bg-white p-8 text-center shadow-[0px_2px_8px_rgba(146,184,255,0.2)] outline-none sm:p-12">
         <DialogHeader className="w-full flex flex-col items-center">
-          <DialogTitle className="text-[1.25rem] font-bold leading-[1.5rem] text-[#004EDC] sm:text-2xl">
+          <DialogTitle className="text-[1.25rem] font-bold leading-6 text-[#004EDC] sm:text-2xl">
             Thông báo bắt đầu bài thi
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mt-2 flex flex-col items-center justify-center gap-1 text-[1rem] leading-[1.5rem] text-[#004EDC] opacity-80">
+        <div className="mt-2 flex flex-col items-center justify-center gap-1 text-[1rem] leading-6 text-[#004EDC] opacity-80">
           <span>Bài thi sẽ bắt đầu ngay sau khi bạn xác nhận.</span>
           <span>Thời gian làm bài: {duration}.</span>
           <span>Hệ thống sẽ tự động nộp bài khi hết thời gian.</span>
@@ -72,9 +72,9 @@ export default function StartExamDialog({
           <button
             onClick={handleStart}
             disabled={isStarting}
-            className="rounded-[30px] bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:py-3"
+            className="rounded-num-30 bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:py-3"
           >
-            <b className="relative text-[1rem] leading-[1.5rem]">
+            <b className="relative text-[1rem] leading-6">
               {isStarting ? "Đang vào bài thi..." : "Bắt đầu làm bài"}
             </b>
           </button>

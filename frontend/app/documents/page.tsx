@@ -35,9 +35,9 @@ export default async function DocumentsPage({
             <Header />
             <Banner />
 
-            <section className="w-full bg-[#F6FBFF] py-8 sm:py-12 flex-grow border-t border-blue-50">
+            <section className="w-full bg-[#F6FBFF] py-8 sm:py-12 grow border-t border-blue-50">
 
-                <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px]">
+                <div className="w-full max-w-360 mx-auto px-4 sm:px-6 md:px-24">
 
                     <div className="w-full grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 lg:gap-8 items-start">
 

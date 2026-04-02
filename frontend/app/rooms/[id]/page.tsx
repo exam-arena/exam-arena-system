@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
-import { Users, User, Clock, GraduationCap, ChevronLeft } from "lucide-react";
+import { Users, User, Clock, ChevronLeft } from "lucide-react";
 import RoomExamCard from "@/components/room/RoomExamCard";
 import CustomPagination from "@/components/shared/CustomPagination";
 import Banner from "@/components/sections/Banner";
@@ -32,8 +32,8 @@ export default async function RoomDetailPage({
         <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
             <Header />
 
-            <section className="w-full bg-[#F6FBFF] flex-grow py-8 md:py-12 border-t border-blue-50">
-                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px]">
+            <section className="w-full bg-[#F6FBFF] grow py-8 md:py-12 border-t border-blue-50">
+                <div className="max-w-360 mx-auto px-4 sm:px-6 md:px-24">
 
                     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 md:gap-10 items-start">
 

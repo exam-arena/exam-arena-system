@@ -15,7 +15,7 @@ export function Question({ number, text, imageUrl, isBookmarked, onToggleBookmar
             <div className="flex flex-col w-full">
                 {/* Question number + bookmark */}
                 <div className="flex items-center justify-between mb-2">
-                    {number && <b className="text-lg leading-[1.75rem] text-mediumslateblue">Câu {number}:</b>}
+                    {number && <b className="text-lg leading-7 text-mediumslateblue">Câu {number}:</b>}
                     <button
                         onClick={onToggleBookmark}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-num-30 border text-sm transition-all cursor-pointer ${
@@ -32,7 +32,7 @@ export function Question({ number, text, imageUrl, isBookmarked, onToggleBookmar
                     </button>
                 </div>
 
-                <div className="text-[1.125rem] leading-[2rem] flex flex-col items-start gap-4">
+                <div className="text-[1.125rem] leading-8 flex flex-col items-start gap-4">
                     <div className="w-full">{text}</div>
 
                     {imageUrl && (
