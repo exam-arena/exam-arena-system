@@ -105,6 +105,11 @@ type SubmitAttemptResult struct {
 	Summary       *AttemptSubmissionRow
 }
 
+type AutoSubmittedAttemptRow struct {
+	AttemptID string
+	UserID    string
+}
+
 type AttemptResultBaseRow struct {
 	AttemptID string
 	UserID    string
@@ -311,9 +316,11 @@ func ResolveAttemptAnswersAuthorized(ctx context.Context, attemptID, userID stri
 			SELECT
 				attempt_id,
 				user_id,
-				status
-			FROM exam_attempt
-			WHERE attempt_id = ?::uuid
+				status,
+				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+			FROM exam_attempt ea
+			JOIN exam e ON e.exam_id = ea.exam_id
+			WHERE ea.attempt_id = ?::uuid
 			LIMIT 1
 		),
 		write_guard AS (
@@ -321,6 +328,7 @@ func ResolveAttemptAnswersAuthorized(ctx context.Context, attemptID, userID stri
 			FROM attempt_guard
 			WHERE user_id = ?::uuid
 			  AND status = 'in_progress'
+			  AND CURRENT_TIMESTAMP < expires_at
 		),
 		payload AS (
 			SELECT
@@ -375,7 +383,7 @@ func ResolveAttemptAnswersAuthorized(ctx context.Context, attemptID, userID stri
 		SELECT
 			EXISTS(SELECT 1 FROM attempt_guard) AS attempt_exists,
 			COALESCE((SELECT user_id = ?::uuid FROM attempt_guard), FALSE) AS is_owner,
-			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid FROM attempt_guard), FALSE) AS can_write,
+			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid AND CURRENT_TIMESTAMP < expires_at FROM attempt_guard), FALSE) AS can_write,
 			COALESCE(
 				json_agg(
 					json_build_object(
@@ -439,9 +447,11 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 			SELECT
 				attempt_id,
 				user_id,
-				status
-			FROM exam_attempt
-			WHERE attempt_id = ?::uuid
+				status,
+				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+			FROM exam_attempt ea
+			JOIN exam e ON e.exam_id = ea.exam_id
+			WHERE ea.attempt_id = ?::uuid
 			LIMIT 1
 		),
 		write_guard AS (
@@ -449,6 +459,7 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 			FROM attempt_guard
 			WHERE user_id = ?::uuid
 			  AND status = 'in_progress'
+			  AND CURRENT_TIMESTAMP < expires_at
 		),
 		payload AS (
 			SELECT
@@ -495,7 +506,7 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 		SELECT
 			EXISTS(SELECT 1 FROM attempt_guard) AS attempt_exists,
 			COALESCE((SELECT user_id = ?::uuid FROM attempt_guard), FALSE) AS is_owner,
-			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid FROM attempt_guard), FALSE) AS can_write,
+			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid AND CURRENT_TIMESTAMP < expires_at FROM attempt_guard), FALSE) AS can_write,
 			COALESCE(
 				json_agg(
 					json_build_object(
@@ -599,9 +610,11 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 			SELECT
 				attempt_id,
 				user_id,
-				status
-			FROM exam_attempt
-			WHERE attempt_id = ?::uuid
+				status,
+				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+			FROM exam_attempt ea
+			JOIN exam e ON e.exam_id = ea.exam_id
+			WHERE ea.attempt_id = ?::uuid
 			LIMIT 1
 		),
 		write_guard AS (
@@ -609,6 +622,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 			FROM attempt_guard
 			WHERE user_id = ?::uuid
 			  AND status = 'in_progress'
+			  AND CURRENT_TIMESTAMP < expires_at
 		),
 		payload AS (
 			SELECT
@@ -708,7 +722,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 		SELECT
 			EXISTS(SELECT 1 FROM attempt_guard) AS attempt_exists,
 			COALESCE((SELECT user_id = ?::uuid FROM attempt_guard), FALSE) AS is_owner,
-			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid FROM attempt_guard), FALSE) AS can_write,
+			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid AND CURRENT_TIMESTAMP < expires_at FROM attempt_guard), FALSE) AS can_write,
 			COALESCE(
 				json_agg(
 					json_build_object(
@@ -766,8 +780,10 @@ func SubmitAttemptAuthorized(ctx context.Context, attemptID, userID string) (*Su
 				ea.exam_id,
 				ea.status,
 				ea.started_at,
-				ea.end_at
+				ea.end_at,
+				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
 			FROM exam_attempt ea
+			JOIN exam e ON e.exam_id = ea.exam_id
 			WHERE ea.attempt_id = ?::uuid
 			LIMIT 1
 		),
@@ -780,7 +796,7 @@ func SubmitAttemptAuthorized(ctx context.Context, attemptID, userID string) (*Su
 			UPDATE attempt_section_log asl
 			SET
 				status = 'completed',
-				end_at = COALESCE(asl.end_at, CURRENT_TIMESTAMP)
+				end_at = COALESCE(asl.end_at, LEAST(CURRENT_TIMESTAMP, a.expires_at))
 			FROM authorized a
 			WHERE asl.attempt_id = a.attempt_id
 			  AND a.status = 'in_progress'
@@ -790,7 +806,7 @@ func SubmitAttemptAuthorized(ctx context.Context, attemptID, userID string) (*Su
 			UPDATE exam_attempt ea
 			SET
 				status = 'submitted',
-				end_at = COALESCE(ea.end_at, CURRENT_TIMESTAMP),
+				end_at = COALESCE(ea.end_at, LEAST(CURRENT_TIMESTAMP, a.expires_at)),
 				updated_at = CURRENT_TIMESTAMP
 			FROM authorized a
 			WHERE ea.attempt_id = a.attempt_id
@@ -843,6 +859,62 @@ func SubmitAttemptAuthorized(ctx context.Context, attemptID, userID string) (*Su
 		Status:        queryResult.Status,
 		Summary:       summary,
 	}, nil
+}
+
+func AutoSubmitExpiredAttempts(ctx context.Context, limit int) ([]AutoSubmittedAttemptRow, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+
+	rows := make([]AutoSubmittedAttemptRow, 0)
+	err := config.DB.WithContext(ctx).Raw(`
+		WITH expired_attempts AS (
+			SELECT
+				ea.attempt_id,
+				ea.user_id,
+				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+			FROM exam_attempt ea
+			JOIN exam e ON e.exam_id = ea.exam_id
+			WHERE ea.status = 'in_progress'
+			  AND CURRENT_TIMESTAMP >= ea.started_at + (e.duration * INTERVAL '1 second')
+			ORDER BY ea.started_at
+			LIMIT ?
+		),
+		updated_sections AS (
+			UPDATE attempt_section_log asl
+			SET
+				status = 'completed',
+				end_at = COALESCE(asl.end_at, exp.expires_at)
+			FROM expired_attempts exp
+			WHERE asl.attempt_id = exp.attempt_id
+			  AND asl.status <> 'completed'
+		),
+		updated_attempts AS (
+			UPDATE exam_attempt ea
+			SET
+				status = 'submitted',
+				end_at = COALESCE(ea.end_at, exp.expires_at),
+				updated_at = CURRENT_TIMESTAMP
+			FROM expired_attempts exp
+			WHERE ea.attempt_id = exp.attempt_id
+			  AND ea.status = 'in_progress'
+			RETURNING
+				ea.attempt_id,
+				ea.user_id
+		)
+		SELECT
+			attempt_id,
+			user_id
+		FROM updated_attempts
+	`, limit).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
 
 func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResultBaseRow, error) {

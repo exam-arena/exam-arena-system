@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"log"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -45,6 +47,8 @@ const attemptDetailCacheTTL = 5 * time.Second
 const attemptDetailPayloadCacheTTL = 5 * time.Second
 const attemptReviewCacheTTL = 30 * time.Second
 const attemptResultCacheTTL = 30 * time.Second
+const defaultExpiredAttemptSweepInterval = 5 * time.Second
+const defaultExpiredAttemptSweepBatchSize = 100
 
 type StartAttemptInput struct {
 	UserID string
@@ -477,6 +481,85 @@ func SubmitAttempt(ctx context.Context, input SubmitAttemptInput) (*SubmitAttemp
 
 func acquireSubmitAttemptLock(ctx context.Context, attemptID string) (func(), error) {
 	return acquireRedisLockWithRetry(ctx, "submit-attempt-lock:"+attemptID)
+}
+
+func StartExpiredAttemptAutoSubmitter(ctx context.Context) {
+	interval := getExpiredAttemptSweepInterval()
+	if interval <= 0 {
+		log.Println("attempt auto-submit worker disabled")
+		return
+	}
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		runExpiredAttemptSweep(ctx)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				runExpiredAttemptSweep(ctx)
+			}
+		}
+	}()
+}
+
+func runExpiredAttemptSweep(parent context.Context) {
+	batchSize := getExpiredAttemptSweepBatchSize()
+	for {
+		sweepCtx, cancel := context.WithTimeout(ctxOrBackground(parent), 5*time.Second)
+		rows, err := repositories.AutoSubmitExpiredAttempts(sweepCtx, batchSize)
+		cancel()
+		if err != nil {
+			log.Printf("attempt auto-submit worker failed: %v", err)
+			return
+		}
+		if len(rows) == 0 {
+			return
+		}
+
+		for _, row := range rows {
+			invalidateAttemptCachesForUser(row.UserID, row.AttemptID)
+		}
+
+		log.Printf("attempt auto-submit worker finalized %d expired attempt(s)", len(rows))
+		if len(rows) < batchSize {
+			return
+		}
+	}
+}
+
+func getExpiredAttemptSweepInterval() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("ATTEMPT_AUTO_SUBMIT_SWEEP_INTERVAL_SECONDS"))
+	if raw == "" {
+		return defaultExpiredAttemptSweepInterval
+	}
+
+	seconds, err := strconv.Atoi(raw)
+	if err != nil || seconds < 0 {
+		return defaultExpiredAttemptSweepInterval
+	}
+	if seconds == 0 {
+		return 0
+	}
+
+	return time.Duration(seconds) * time.Second
+}
+
+func getExpiredAttemptSweepBatchSize() int {
+	raw := strings.TrimSpace(os.Getenv("ATTEMPT_AUTO_SUBMIT_SWEEP_BATCH_SIZE"))
+	if raw == "" {
+		return defaultExpiredAttemptSweepBatchSize
+	}
+
+	size, err := strconv.Atoi(raw)
+	if err != nil || size <= 0 {
+		return defaultExpiredAttemptSweepBatchSize
+	}
+
+	return size
 }
 
 func acquireRedisLockWithRetry(ctx context.Context, lockKey string) (func(), error) {
@@ -1009,6 +1092,15 @@ func invalidateAttemptWriteGuardCache(attemptID string) {
 	defer cancel()
 
 	_ = config.RedisClient.Del(ctx, cacheKey).Err()
+}
+
+func invalidateAttemptCachesForUser(userID, attemptID string) {
+	invalidateAttemptInfoCache(attemptID)
+	invalidateAttemptWriteGuardCache(attemptID)
+	invalidateAttemptDetailCache(userID, attemptID)
+	invalidateAttemptDetailPayloadCache(userID, attemptID)
+	invalidateAttemptReviewCache(userID, attemptID)
+	invalidateAttemptResultCache(userID, attemptID)
 }
 
 func getCachedAttemptInfo(ctx context.Context, attemptID string) (*repositories.AttemptRow, error) {
