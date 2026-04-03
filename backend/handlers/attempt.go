@@ -45,6 +45,10 @@ func StartAttempt(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, services.ErrExamNotFound):
 			utils.SendError(w, http.StatusNotFound, "EXAM_NOT_FOUND", "Exam not found")
+		case errors.Is(err, services.ErrExamNotStarted):
+			utils.SendError(w, http.StatusConflict, "EXAM_NOT_STARTED", "Chưa tới giờ thi")
+		case errors.Is(err, services.ErrExamEnded):
+			utils.SendError(w, http.StatusConflict, "EXAM_ENDED", "Bài thi đã kết thúc")
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
 		default:

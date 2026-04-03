@@ -55,6 +55,7 @@ export interface ExamListItem {
   type: string;
   typeLabel: string;
   capacity: number;
+  durationSeconds: number;
   durationMinutes: number;
   durationLabel: string;
   totalQuestions: number;

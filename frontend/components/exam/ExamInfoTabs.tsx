@@ -5,12 +5,23 @@ import StartExamDialog from "@/components/exam/StartExamDialog";
 
 interface ExamInfoTabsProps {
     examId: string;
+    examType: string;
+    examStartTime?: string;
+    examDurationSeconds: number;
     examDuration: string;
     totalQuestions?: number;
     participantCount?: number;
 }
 
-export default function ExamInfoTabs({ examId, examDuration, totalQuestions = 0, participantCount = 0 }: ExamInfoTabsProps) {
+export default function ExamInfoTabs({
+    examId,
+    examType,
+    examStartTime,
+    examDurationSeconds,
+    examDuration,
+    totalQuestions = 0,
+    participantCount = 0,
+}: ExamInfoTabsProps) {
     return (
         <div className="w-full mt-2">
             <div className="flex flex-wrap items-center gap-3 w-full">
@@ -39,7 +50,13 @@ export default function ExamInfoTabs({ examId, examDuration, totalQuestions = 0,
             </div>
 
             <div className="flex flex-col items-start w-full sm:w-auto mt-8">
-                <StartExamDialog examId={examId} duration={examDuration}>
+                <StartExamDialog
+                    examId={examId}
+                    examType={examType}
+                    startTime={examStartTime}
+                    durationSeconds={examDurationSeconds}
+                    duration={examDuration}
+                >
                     <button className="w-full sm:w-auto rounded-full bg-[#0050e2] hover:bg-mediumslateblue text-white transition-colors flex items-center justify-center py-3.5 px-10 font-bold shadow-md hover:shadow-lg text-lg">
                         Bắt đầu làm bài
                     </button>
