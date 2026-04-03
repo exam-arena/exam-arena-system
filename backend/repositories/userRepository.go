@@ -1,27 +1,59 @@
 package repositories
 
 import (
+	"context"
 	"errors"
+	"strings"
 
 	"backend/config"
 	"backend/models"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
-// ✅ Tạo user mới
+var (
+	ErrUserEmailConflict    = errors.New("user email conflict")
+	ErrUserUsernameConflict = errors.New("user username conflict")
+)
+
 func CreateUser(user *models.User) error {
-	return config.DB.Create(user).Error
+	return CreateUserWithContext(context.Background(), user)
 }
 
-// ✅ Tìm user theo email
+func CreateUserWithContext(ctx context.Context, user *models.User) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	err := config.DB.WithContext(ctx).Create(user).Error
+	if err == nil {
+		return nil
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		detail := strings.ToLower(pgErr.Detail)
+		constraint := strings.ToLower(pgErr.ConstraintName)
+
+		switch {
+		case strings.Contains(constraint, "email") || strings.Contains(detail, "(email)"):
+			return ErrUserEmailConflict
+		case strings.Contains(constraint, "username") || strings.Contains(detail, "(username)"):
+			return ErrUserUsernameConflict
+		}
+	}
+
+	return err
+}
+
 func GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
 
 	err := config.DB.Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // không tìm thấy
+			return nil, nil
 		}
 		return nil, err
 	}
@@ -29,7 +61,6 @@ func GetUserByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
-// ✅ Tìm user theo username
 func GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
 
@@ -44,14 +75,35 @@ func GetUserByUsername(username string) (*models.User, error) {
 	return &user, nil
 }
 
-// ✅ Tìm user bằng email HOẶC username
 func GetUserByIdentifier(identifier string) (*models.User, error) {
+	return GetUserByIdentifierWithContext(context.Background(), identifier)
+}
+
+func GetUserByIdentifierWithContext(ctx context.Context, identifier string) (*models.User, error) {
 	var user models.User
 
-	err := config.DB.
-		Where("email = ? OR username = ?", identifier, identifier).
-		First(&user).Error
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
+	query := config.DB.WithContext(ctx).
+		Select("user_id", "username", "password", "fullname", "email", "role")
+
+	normalizedIdentifier := strings.TrimSpace(identifier)
+	if strings.Contains(normalizedIdentifier, "@") {
+		normalizedIdentifier = strings.ToLower(normalizedIdentifier)
+		err := query.Where("email = ?", normalizedIdentifier).First(&user).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, nil
+			}
+			return nil, err
+		}
+
+		return &user, nil
+	}
+
+	err := query.Where("username = ?", normalizedIdentifier).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -62,14 +114,12 @@ func GetUserByIdentifier(identifier string) (*models.User, error) {
 	return &user, nil
 }
 
-// ✅ Check email đã tồn tại chưa
 func IsEmailExists(email string) (bool, error) {
 	var count int64
 
 	err := config.DB.Model(&models.User{}).
 		Where("email = ?", email).
 		Count(&count).Error
-
 	if err != nil {
 		return false, err
 	}
@@ -77,14 +127,12 @@ func IsEmailExists(email string) (bool, error) {
 	return count > 0, nil
 }
 
-// ✅ Check username đã tồn tại chưa
 func IsUsernameExists(username string) (bool, error) {
 	var count int64
 
 	err := config.DB.Model(&models.User{}).
 		Where("username = ?", username).
 		Count(&count).Error
-
 	if err != nil {
 		return false, err
 	}

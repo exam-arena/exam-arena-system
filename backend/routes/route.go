@@ -9,7 +9,7 @@ import (
 
 // SetupRoutes registers HTTP routes.
 func SetupRoutes() {
-	http.HandleFunc("/api/v1/auth/register", handlers.Register)
+	http.HandleFunc("/api/v1/auth/register", middleware.RegisterRateLimit(handlers.Register))
 	http.HandleFunc("/api/v1/auth/login", middleware.LoginRateLimit(handlers.Login))
 	http.HandleFunc("/api/v1/auth/logout", handlers.Logout)
 	http.HandleFunc("/api/v1/auth/me", middleware.RequireAuth(handlers.Profile))
