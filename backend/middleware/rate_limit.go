@@ -185,6 +185,12 @@ var getHotRoomsLimiter = newIPRateLimiter(
 	2*time.Minute,
 )
 
+var getRoomExamsLimiter = newIPRateLimiter(
+	getEnvFloat("GET_ROOM_EXAMS_RATE_LIMIT_RPS", 20),
+	int(getEnvFloat("GET_ROOM_EXAMS_RATE_LIMIT_BURST", 80)),
+	2*time.Minute,
+)
+
 func LoginRateLimit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !loginLimiter.allow(clientIP(r)) {
@@ -340,6 +346,17 @@ func GetHotRoomsRateLimit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !getHotRoomsLimiter.allow(clientIP(r)) {
 			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get hot rooms requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func GetRoomExamsRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !getRoomExamsLimiter.allow(clientIP(r)) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get room exams requests")
 			return
 		}
 

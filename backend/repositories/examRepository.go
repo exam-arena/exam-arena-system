@@ -17,6 +17,11 @@ type RoomExamListRow struct {
 	TotalCount int64
 }
 
+type RoomExamMetaRow struct {
+	RoomExists bool
+	TotalCount int64
+}
+
 func CountExamsByRoomID(ctx context.Context, roomID string) (int64, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -64,4 +69,34 @@ func ListExamsByRoomID(ctx context.Context, roomID string, page, limit int) ([]R
 	}
 
 	return rows, nil
+}
+
+func GetRoomExamMeta(ctx context.Context, roomID string) (*RoomExamMetaRow, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var row RoomExamMetaRow
+
+	err := config.DB.WithContext(ctx).Raw(`
+		WITH room_scope AS (
+			SELECT r.room_id
+			FROM exam_room r
+			WHERE r.room_id = ?
+			  AND r.deleted_at IS NULL
+		)
+		SELECT
+			EXISTS(SELECT 1 FROM room_scope) AS room_exists,
+			(
+				SELECT COUNT(*)
+				FROM exam e
+				WHERE e.room_id IN (SELECT room_id FROM room_scope)
+				  AND e.deleted_at IS NULL
+			) AS total_count
+	`, roomID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &row, nil
 }
