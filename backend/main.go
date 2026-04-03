@@ -13,6 +13,7 @@ import (
 	"backend/config"
 	"backend/middleware"
 	"backend/routes"
+	"backend/services"
 	"backend/utils"
 )
 
@@ -22,6 +23,9 @@ func main() {
 	config.ConnectDatabase()
 	config.ConnectRedis()
 	routes.SetupRoutes()
+
+	appCtx, stopBackgroundWorkers := context.WithCancel(context.Background())
+	services.StartExpiredAttemptAutoSubmitter(appCtx)
 
 	// ===== Tạo server =====
 	server := &http.Server{
@@ -47,6 +51,7 @@ func main() {
 
 	<-quit // ⏳ chờ tín hiệu
 	fmt.Println("🛑 Shutting down server...")
+	stopBackgroundWorkers()
 
 	// ===== Cho phép xử lý request còn lại trong 10s =====
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

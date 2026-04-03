@@ -21,7 +21,7 @@ export default function Footer() {
 
             {/* Content */}
             <div
-                className="relative z-10 max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px] py-8 sm:py-10 md:py-12 text-white"
+                className="relative z-10 max-w-360 mx-auto px-4 sm:px-6 md:px-24 py-8 sm:py-10 md:py-12 text-white"
             >
 
                 {/* Top */}
@@ -34,7 +34,7 @@ export default function Footer() {
                             alt="Exam Arena"
                             width={190}
                             height={50}
-                            className="object-contain w-[140px] sm:w-[160px] md:w-[180px] mx-auto md:mx-0 mb-2"
+                            className="object-contain w-35 sm:w-40 md:w-45 mx-auto md:mx-0 mb-2"
                         />
 
                         <p className="text-lg sm:text-lg font-semibold mt-3 mb-3 uppercase">

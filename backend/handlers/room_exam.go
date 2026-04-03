@@ -1,4 +1,4 @@
-package controllers
+package handlers
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ func GetRoomExams(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
-	result, err := services.GetRoomExams(services.GetRoomExamsInput{
+	payload, err := services.GetRoomExamsPayload(r.Context(), services.GetRoomExamsInput{
 		RoomID: roomID,
 		Page:   page,
 		Limit:  limit,
@@ -39,5 +39,6 @@ func GetRoomExams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendSuccess(w, result)
+	w.Header().Set("Cache-Control", "public, max-age=30, stale-while-revalidate=120")
+	utils.SendJSONBytes(w, http.StatusOK, payload)
 }

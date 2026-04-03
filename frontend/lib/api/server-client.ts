@@ -38,17 +38,45 @@ export async function serverApiRequest<T>(
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
       cache: "no-store",
+      credentials: "include",
     });
 
-    const json = await response.json();
+    const raw = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+    const isJSON = contentType.toLowerCase().includes("application/json");
+    const json = raw && isJSON ? JSON.parse(raw) : null;
 
     if (!response.ok) {
-      const errorData = json as ApiErrorResponse;
-      throw new Error(errorData.error?.message || "Server error");
+      const errorData = json as ApiErrorResponse | null;
+      throw new Error(
+        errorData?.error?.message ||
+          raw ||
+          `Request failed with status ${response.status}`
+      );
     }
 
-    const successData = json as ApiSuccessResponse<T>;
+    const successData = json as ApiSuccessResponse<T> | null;
+    if (!successData || successData.status !== "success") {
+      throw new Error(
+        raw && !isJSON ? raw : "Server returned an invalid response"
+      );
+    }
+
     return successData.data;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("Server returned an invalid response");
+    }
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error("Unable to connect to server");
+    }
+
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }

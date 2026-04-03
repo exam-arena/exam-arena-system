@@ -14,8 +14,8 @@ export default async function DocumentDetailPage({
         <main className="min-h-screen bg-neutral-50 flex flex-col w-full">
             <Header />
 
-            <section className="w-full bg-[#F6FBFF] py-16 flex-grow flex flex-col items-center justify-center border-t border-blue-50 px-4">
-                <div className="max-w-[600px] w-full bg-white rounded-3xl p-8 sm:p-12 shadow-sm border border-blue-50 flex flex-col items-center text-center gap-6">
+            <section className="w-full bg-[#F6FBFF] py-16 grow flex flex-col items-center justify-center border-t border-blue-50 px-4">
+                <div className="max-w-150 w-full bg-white rounded-3xl p-8 sm:p-12 shadow-sm border border-blue-50 flex flex-col items-center text-center gap-6">
                     <div className="w-20 h-20 bg-[#EAF2FF] rounded-full flex items-center justify-center text-[#004EDC]">
                         <Wrench className="w-10 h-10" />
                     </div>

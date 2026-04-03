@@ -3,12 +3,7 @@ import type { AttemptRaw } from "./types";
 
 import data from "@/data.json";
 
-let mockAttemptUserAnswers: Record<string, string> = {};
-try {
-  const mockFile = require("@/../mock_attempt_data.json");
-  mockAttemptUserAnswers = mockFile?.data?.user_answers || {};
-} catch {
-}
+const mockAttemptUserAnswers: Record<string, string> = {};
 
 export function getMockAttempts(): AttemptRaw[] {
   return (data.exam_attempts || []) as AttemptRaw[];

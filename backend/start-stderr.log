@@ -1,0 +1,2 @@
+2026/04/02 16:50:41 ❌ Lỗi không thể kết nối tới Database Neon: failed to connect to `user=neondb_owner database=neondb`: 13.228.184.177:5432 (ep-little-tree-a17v4234-pooler.ap-southeast-1.aws.neon.tech): failed SASL auth: ERROR: password authentication failed for user 'neondb_owner' (SQLSTATE 28P01)
+exit status 1

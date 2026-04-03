@@ -31,11 +31,59 @@ export interface AttemptUser {
   role: string;
 }
 
+export interface AttemptQuestionOption {
+  id: string;
+  text: string;
+}
+
+export interface AttemptQuestion {
+  question_id: string;
+  parent_id: string | null;
+  content: string;
+  image_url: string | null;
+  options: AttemptQuestionOption[];
+  type: string;
+  question_type: string;
+  explanation?: string;
+  correct_answer?: string;
+}
+
 export interface AttemptData {
+  attempt_id?: string;
+  status?: string;
+  started_at?: string;
+  duration_seconds?: number;
+  server_time?: string;
+  user_answers?: Record<string, string>;
   title: string;
   durationMinutes: number;
-  questions: any[];
+  questions: AttemptQuestion[];
   user: AttemptUser;
+}
+
+export interface StartAttemptData {
+  attempt_id: string;
+  exam_id: string;
+  status: string;
+  started_at: string;
+}
+
+export interface SaveAttemptAnswerInput {
+  question_id: string;
+  selected_ans: string;
+}
+
+export interface SaveAttemptAnswersData {
+  attempt_id: string;
+  saved_at: string;
+  saved_count: number;
+  answers: SaveAttemptAnswerInput[];
+}
+
+export interface SubmitAttemptData {
+  attempt_id: string;
+  status: string;
+  submitted_at: string | null;
 }
 
 export interface AttemptResultData {
@@ -64,7 +112,7 @@ export interface AttemptResultData {
 
 export interface AttemptReviewData {
   title: string;
-  questions: any[];
+  questions: AttemptQuestion[];
   userAnswers: Record<string, string>;
   user: AttemptUser;
 }
