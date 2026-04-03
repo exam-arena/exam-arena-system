@@ -60,13 +60,9 @@ export default function LoginPage() {
 
   return (
     <div className="w-full min-h-screen bg-white flex flex-col">
-
-      {/* Header */}
       <Header />
 
-      {/* Hero */}
       <AuthLayout>
-        {/* Title */}
         <div className="flex flex-col items-center gap-2 w-full">
           <h2 className="text-[20px] lg:text-[24px] font-bold leading-8 text-[#004EDC] text-center">
             Cùng ôn luyện nào!
@@ -76,20 +72,14 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Form Content */}
         <form onSubmit={handleSubmit} className="flex flex-col items-start gap-3 w-full max-w-86">
-
-          {/* Error Message */}
           {error && (
             <div className="w-full px-4 py-2 bg-red-50 border border-red-200 rounded-[12px] text-red-600 text-[13px] text-center">
               {error}
             </div>
           )}
 
-          {/* Inputs Wrapper */}
           <div className="flex flex-col items-start gap-3 w-full">
-
-            {/* Username */}
             <div className="flex flex-col items-start gap-1 w-full">
               <label htmlFor="login-identifier" className="text-[#004EDC] text-[16px] font-bold leading-6">
                 Tài khoản
@@ -104,7 +94,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div className="flex flex-col items-start gap-1 w-full">
               <label htmlFor="login-password" className="text-[#004EDC] text-[16px] font-bold leading-6">
                 Mật khẩu
@@ -121,23 +110,12 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Remember / Forgot Password */}
-          <div className="flex justify-between items-center w-full">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <div className="flex items-center justify-center w-5 h-5 rounded-lg border-2 border-[#EDF3FF] overflow-hidden bg-white">
-                <input type="checkbox" className="w-3.5 h-3.5 accent-[#004EDC] cursor-pointer" />
-              </div>
-              <span className="text-[#92B8FF] text-[12px] leading-6 group-hover:text-[#004EDC] transition-colors">
-                Ghi nhớ mật khẩu
-              </span>
-            </label>
-
+          <div className="flex justify-end items-center w-full">
             <span className="text-[#004EDC] text-[12px] leading-6 cursor-pointer hover:underline">
               Quên mật khẩu?
             </span>
           </div>
 
-          {/* Submit Actions */}
           <div className="flex flex-col items-center gap-2 w-full">
             <Button
               type="submit"
@@ -159,9 +137,7 @@ export default function LoginPage() {
         </form>
       </AuthLayout>
 
-      {/* Footer */}
       <Footer />
-
     </div>
   );
 }
