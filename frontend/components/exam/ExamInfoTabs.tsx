@@ -5,21 +5,32 @@ import StartExamDialog from "@/components/exam/StartExamDialog";
 
 interface ExamInfoTabsProps {
     examId: string;
+    examType: string;
+    examStartTime?: string;
+    examDurationSeconds: number;
     examDuration: string;
     totalQuestions?: number;
     participantCount?: number;
 }
 
-export default function ExamInfoTabs({ examId, examDuration, totalQuestions = 0, participantCount = 0 }: ExamInfoTabsProps) {
+export default function ExamInfoTabs({
+    examId,
+    examType,
+    examStartTime,
+    examDurationSeconds,
+    examDuration,
+    totalQuestions = 0,
+    participantCount = 0,
+}: ExamInfoTabsProps) {
     return (
         <div className="w-full mt-2">
             <div className="flex flex-wrap items-center gap-3 w-full">
-                <div className="rounded-[30px] border border-transparent bg-[#e7f0ff] text-[#0050e2] py-[0.5rem] px-[1.25rem] text-[1rem] leading-[1.75rem] font-bold flex items-center justify-center">
+                <div className="rounded-num-30 border border-transparent bg-[#e7f0ff] text-[#0050e2] py-2 px-5 text-[1rem] leading-7 font-bold flex items-center justify-center">
                     Thông tin đề thi
                 </div>
             </div>
 
-            <div className="mt-8 flex flex-col items-start gap-3 w-full text-[#004edc] text-base font-medium">
+            <div className="mt-8 flex flex-col items-start gap-3 w-full text-mediumslateblue text-base font-medium">
                 <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5" />
                     <div>Thời gian làm bài: {examDuration} | {totalQuestions} câu hỏi</div>
@@ -39,8 +50,14 @@ export default function ExamInfoTabs({ examId, examDuration, totalQuestions = 0,
             </div>
 
             <div className="flex flex-col items-start w-full sm:w-auto mt-8">
-                <StartExamDialog examId={examId} duration={examDuration}>
-                    <button className="w-full sm:w-auto rounded-full bg-[#0050e2] hover:bg-[#004edc] text-white transition-colors flex items-center justify-center py-3.5 px-10 font-bold shadow-md hover:shadow-lg text-lg">
+                <StartExamDialog
+                    examId={examId}
+                    examType={examType}
+                    startTime={examStartTime}
+                    durationSeconds={examDurationSeconds}
+                    duration={examDuration}
+                >
+                    <button className="w-full sm:w-auto rounded-full bg-[#0050e2] hover:bg-mediumslateblue text-white transition-colors flex items-center justify-center py-3.5 px-10 font-bold shadow-md hover:shadow-lg text-lg">
                         Bắt đầu làm bài
                     </button>
                 </StartExamDialog>

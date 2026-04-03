@@ -158,3 +158,45 @@ CREATE INDEX idx_attempt_detail_log ON attempt_detail(log_id);
 
 -- Tối ưu truy vấn JSONB cho các options câu hỏi
 CREATE INDEX idx_question_options ON question USING GIN (options);
+
+
+-- 1. Tăng tốc lấy section theo exam
+CREATE INDEX IF NOT EXISTS idx_exam_section_exam_id
+ON exam_section(exam_id);
+
+-- 2. Tăng tốc log section theo attempt
+CREATE INDEX IF NOT EXISTS idx_attempt_section_log_attempt_id
+ON attempt_section_log(attempt_id);
+
+-- 3. Nếu hay query section cụ thể trong 1 attempt
+CREATE INDEX IF NOT EXISTS idx_attempt_section_log_attempt_section
+ON attempt_section_log(attempt_id, section_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_attempt_section_log_attempt_section
+ON attempt_section_log(attempt_id, section_id);
+
+-- 4. Tăng tốc lookup answer theo question
+CREATE INDEX IF NOT EXISTS idx_attempt_detail_question_id
+ON attempt_detail(question_id);
+
+-- 5. Chặn 1 câu bị lưu nhiều dòng trong cùng 1 log
+CREATE UNIQUE INDEX IF NOT EXISTS uq_attempt_detail_log_question
+ON attempt_detail(log_id, question_id);
+
+-- 6. Chặn 1 user có nhiều bài đang làm cho cùng 1 exam
+CREATE UNIQUE INDEX IF NOT EXISTS uq_exam_attempt_user_exam_in_progress
+ON exam_attempt(user_id, exam_id)
+WHERE status = 'in_progress';
+
+-- 7. Tăng tốc query bài đang làm / lịch sử gần nhất
+CREATE INDEX IF NOT EXISTS idx_exam_attempt_status_started_at
+ON exam_attempt(status, started_at DESC);
+
+-- 8. Tăng tốc query attempt theo exam
+CREATE INDEX IF NOT EXISTS idx_exam_attempt_exam_id
+ON exam_attempt(exam_id);
+
+-- 9. Tăng tốc đếm người đã luyện tập theo đề
+CREATE INDEX IF NOT EXISTS idx_exam_attempt_exam_user
+ON exam_attempt(exam_id, user_id);
+

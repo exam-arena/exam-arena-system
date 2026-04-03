@@ -21,8 +21,8 @@ export function MultipleChoice({ options, name, value, onChange, mode = "exam", 
                 let btnClass = "bg-cornflowerblue-200 border-transparent hover:bg-mediumslateblue/10 text-mediumslateblue";
                 if (mode === "review") {
                     if (isChecked && isCorrect) btnClass = "bg-mediumslateblue text-white border-mediumslateblue"; 
-                    else if (!isChecked && isCorrect) btnClass = "bg-green-100 border-green-500 text-green-700 font-bold bg-opacity-100"; 
-                    else if (isWrongSelection) btnClass = "bg-red-500 border-red-500 text-white font-bold"; 
+                    else if (!isChecked && isCorrect) btnClass = "bg-green-100/90 border-green-500 text-green-700 font-bold"; 
+                    else if (isWrongSelection) btnClass = "bg-red-100/90 border-red-500 text-red-700 font-bold"; 
                     else btnClass = "bg-slate-50 border-slate-200 text-slate-500"; 
                 } else {
                     if (isChecked) btnClass = "bg-mediumslateblue text-white border-mediumslateblue";
@@ -31,7 +31,7 @@ export function MultipleChoice({ options, name, value, onChange, mode = "exam", 
                 return (
                     <label
                         key={opt.id}
-                        className={`rounded-num-30 py-3 px-5 transition-all border flex items-center gap-2 min-h-[3rem] ${
+                        className={`rounded-num-30 py-3 px-5 transition-all border flex items-center gap-2 min-h-12 ${
                             mode === "review" ? "cursor-default" : "cursor-pointer"
                         } ${btnClass}`}
                     >
@@ -44,10 +44,10 @@ export function MultipleChoice({ options, name, value, onChange, mode = "exam", 
                             disabled={mode === "review"}
                             className="hidden"
                         />
-                        <b className="text-base leading-[1.75rem] whitespace-nowrap shrink-0">
+                        <b className="text-base leading-7 whitespace-nowrap shrink-0">
                             {opt.id}.
                         </b>
-                        <div className={`text-base leading-[1.75rem] break-words ${isChecked ? "font-bold" : "font-normal"}`}>
+                        <div className={`text-base leading-7 wrap-break-word ${isChecked ? "font-bold" : "font-normal"}`}>
                             <LatexText content={opt.text} />
                         </div>
                     </label>

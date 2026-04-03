@@ -60,38 +60,28 @@ export default function LoginPage() {
 
   return (
     <div className="w-full min-h-screen bg-white flex flex-col">
-
-      {/* Header */}
       <Header />
 
-      {/* Hero */}
       <AuthLayout>
-        {/* Title */}
-        <div className="flex flex-col items-center gap-[8px] w-full">
-          <h2 className="text-[20px] lg:text-[24px] font-bold leading-[32px] text-[#004EDC] text-center">
+        <div className="flex flex-col items-center gap-2 w-full">
+          <h2 className="text-[20px] lg:text-[24px] font-bold leading-8 text-[#004EDC] text-center">
             Cùng ôn luyện nào!
           </h2>
-          <p className="text-[#92B8FF] text-[14px] lg:text-[16px] leading-[20px] text-center">
+          <p className="text-[#92B8FF] text-[14px] lg:text-[16px] leading-5 text-center">
             Chào mừng quay trở lại!
           </p>
         </div>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit} className="flex flex-col items-start gap-[12px] w-full max-w-[344px]">
-
-          {/* Error Message */}
+        <form onSubmit={handleSubmit} className="flex flex-col items-start gap-3 w-full max-w-86">
           {error && (
             <div className="w-full px-4 py-2 bg-red-50 border border-red-200 rounded-[12px] text-red-600 text-[13px] text-center">
               {error}
             </div>
           )}
 
-          {/* Inputs Wrapper */}
-          <div className="flex flex-col items-start gap-[12px] w-full">
-
-            {/* Username */}
-            <div className="flex flex-col items-start gap-[4px] w-full">
-              <label htmlFor="login-identifier" className="text-[#004EDC] text-[16px] font-bold leading-[24px]">
+          <div className="flex flex-col items-start gap-3 w-full">
+            <div className="flex flex-col items-start gap-1 w-full">
+              <label htmlFor="login-identifier" className="text-[#004EDC] text-[16px] font-bold leading-6">
                 Tài khoản
               </label>
               <Input
@@ -100,13 +90,12 @@ export default function LoginPage() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full h-[40px] px-4 bg-[#EDF3FF] rounded-[30px] border-none text-[12px] leading-[24px] text-[#004EDC] placeholder:text-[#92B8FF] focus-visible:ring-1 focus-visible:ring-[#004EDC]"
+                className="w-full h-10 px-4 bg-[#EDF3FF] rounded-num-30 border-none text-[12px] leading-6 text-[#004EDC] placeholder:text-[#92B8FF] focus-visible:ring-1 focus-visible:ring-[#004EDC]"
               />
             </div>
 
-            {/* Password */}
-            <div className="flex flex-col items-start gap-[4px] w-full">
-              <label htmlFor="login-password" className="text-[#004EDC] text-[16px] font-bold leading-[24px]">
+            <div className="flex flex-col items-start gap-1 w-full">
+              <label htmlFor="login-password" className="text-[#004EDC] text-[16px] font-bold leading-6">
                 Mật khẩu
               </label>
               <Input
@@ -116,40 +105,29 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full h-[40px] px-4 bg-[#EDF3FF] rounded-[30px] border-none text-[12px] leading-[24px] text-[#004EDC] placeholder:text-[#92B8FF] focus-visible:ring-1 focus-visible:ring-[#004EDC]"
+                className="w-full h-10 px-4 bg-[#EDF3FF] rounded-num-30 border-none text-[12px] leading-6 text-[#004EDC] placeholder:text-[#92B8FF] focus-visible:ring-1 focus-visible:ring-[#004EDC]"
               />
             </div>
           </div>
 
-          {/* Remember / Forgot Password */}
-          <div className="flex justify-between items-center w-full">
-            <label className="flex items-center gap-[8px] cursor-pointer group">
-              <div className="flex items-center justify-center w-[20px] h-[20px] rounded-[4px] border-[2px] border-[#EDF3FF] overflow-hidden bg-white">
-                <input type="checkbox" className="w-[14px] h-[14px] accent-[#004EDC] cursor-pointer" />
-              </div>
-              <span className="text-[#92B8FF] text-[12px] leading-[24px] group-hover:text-[#004EDC] transition-colors">
-                Ghi nhớ mật khẩu
-              </span>
-            </label>
-
-            <span className="text-[#004EDC] text-[12px] leading-[24px] cursor-pointer hover:underline">
+          <div className="flex justify-end items-center w-full">
+            <span className="text-[#004EDC] text-[12px] leading-6 cursor-pointer hover:underline">
               Quên mật khẩu?
             </span>
           </div>
 
-          {/* Submit Actions */}
-          <div className="flex flex-col items-center gap-[8px] w-full">
+          <div className="flex flex-col items-center gap-2 w-full">
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex flex-row justify-center items-center py-[8px] px-[16px] gap-[8px] bg-[#FFE96F] hover:bg-[#FFD600] disabled:opacity-60 rounded-[30px] w-[117px] h-[36px] transition-colors"
+              className="flex flex-row justify-center items-center py-2 px-4 gap-2 bg-[#FFE96F] hover:bg-[#FFD600] disabled:opacity-60 rounded-num-30 w-29.25 h-9 transition-colors"
             >
-              <span className="text-[#004EDC] font-bold text-[16px] leading-[19px]">
+              <span className="text-[#004EDC] font-bold text-[16px] leading-4.75">
                 {isSubmitting ? "Đang xử lý..." : "Đăng nhập"}
               </span>
             </Button>
 
-            <p className="text-[12px] leading-[24px] text-[#92B8FF]">
+            <p className="text-[12px] leading-6 text-[#92B8FF]">
               Chưa có tài khoản?{" "}
               <Link href="/register" className="text-[#004EDC] cursor-pointer hover:underline">
                 Đăng ký ngay
@@ -159,9 +137,7 @@ export default function LoginPage() {
         </form>
       </AuthLayout>
 
-      {/* Footer */}
       <Footer />
-
     </div>
   );
 }

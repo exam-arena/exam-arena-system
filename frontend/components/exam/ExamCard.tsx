@@ -29,7 +29,7 @@ export default function ExamCard({
             "
         >
             {/* Image — aspect-ratio keeps proportion on all screens */}
-            <div className="relative w-full aspect-[4/3]">
+            <div className="relative w-full aspect-4/3">
                 <Image
                     src={image}
                     alt={title}

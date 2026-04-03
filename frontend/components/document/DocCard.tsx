@@ -26,12 +26,12 @@ export default function DocCard({ id, title, subject, type = "Tài liệu tham k
                     </div>
                     <div className="w-full flex flex-col items-start text-left text-base">
                         <div className="w-full flex flex-col items-start justify-center">
-                            <b className="w-full relative leading-[1.5rem] text-[#004EDC] line-clamp-2 min-h-[48px] group-hover:text-blue-800 transition-colors">
+                            <b className="w-full relative leading-6 text-[#004EDC] line-clamp-2 min-h-12 group-hover:text-blue-800 transition-colors">
                                 {title}
                             </b>
                         </div>
-                        <div className="flex items-center gap-1.5 text-center text-xs text-[#92b8ff] mt-3">
-                            <div className="h-3 w-[2px] rounded-full bg-[#92b8ff]" />
+                        <div className="flex items-center gap-1.5 text-center text-xs text-cornflowerblue-100 mt-3">
+                            <div className="h-3 w-0.5 rounded-full bg-cornflowerblue-100" />
                             <span className="leading-5 font-medium">Thời gian: {time}</span>
                         </div>
                     </div>

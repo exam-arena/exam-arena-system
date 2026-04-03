@@ -112,3 +112,11 @@ func SendPaginated(w http.ResponseWriter, data interface{}, page, limit, total i
         log.Printf("response: encode error: %v", err)
     }
 }
+
+func SendJSONBytes(w http.ResponseWriter, statusCode int, body []byte) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(statusCode)
+    if _, err := w.Write(body); err != nil {
+        log.Printf("response: write error: %v", err)
+    }
+}

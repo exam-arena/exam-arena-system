@@ -13,21 +13,21 @@ export default function FilterSidebar() {
     const [selectedCategory, setSelectedCategory] = useState<string>("");
 
     return (
-        <aside className="w-full relative rounded-[30px] bg-white border border-[#0050e2]/20 box-border overflow-hidden flex flex-col items-start py-9 px-4 gap-6 font-roboto sm:sticky sm:top-24">
+        <aside className="w-full relative rounded-num-30 bg-white border border-[#0050e2]/20 box-border overflow-hidden flex flex-col items-start py-9 px-4 gap-6 font-roboto sm:sticky sm:top-24">
 
             {/* Search container */}
-            <div className="w-full flex flex-col items-start gap-6 text-[#92b8ff]">
-                <div className="w-full h-9 rounded-[30px] bg-[#EAF2FF] shrink-0 flex items-center py-2 px-4 box-border gap-1 border border-transparent focus-within:border-[#004EDC] transition-colors">
+            <div className="w-full flex flex-col items-start gap-6 text-cornflowerblue-100">
+                <div className="w-full h-9 rounded-num-30 bg-[#EAF2FF] shrink-0 flex items-center py-2 px-4 box-border gap-1 border border-transparent focus-within:border-[#004EDC] transition-colors">
                     <Search className="h-4 w-4 shrink-0 text-[#004EDC]" />
                     <Input
                         type="text"
                         placeholder="Tìm kiếm đề thi..."
-                        className="bg-transparent border-none outline-none shadow-none text-xs text-[#004EDC] w-full placeholder:text-[#92b8ff]/70 focus-visible:ring-0 px-0 rounded-none h-auto shrink-0 leading-none"
+                        className="bg-transparent border-none outline-none shadow-none text-xs text-[#004EDC] w-full placeholder:text-cornflowerblue-100/70 focus-visible:ring-0 px-0 rounded-none h-auto shrink-0 leading-none"
                     />
                 </div>
                 <div className="w-full flex flex-col items-start gap-3 text-xl text-[#0050e2]">
-                    <b className="relative leading-[0.875rem]">Bộ lọc</b>
-                    <div className="w-full h-[0.5px] border-t border-[#92b8ff] box-border" />
+                    <b className="relative leading-3.5">Bộ lọc</b>
+                    <div className="w-full h-[0.5px] border-t border-cornflowerblue-100 box-border" />
                 </div>
             </div>
 
@@ -44,8 +44,8 @@ export default function FilterSidebar() {
                             key={sub}
                             variant={selectedSubject === sub ? "default" : "secondary"}
                             onClick={() => setSelectedSubject(sub)}
-                            className={`rounded-[30px] font-medium py-1 h-auto px-3 transition-colors flex items-center justify-center w-full text-xs shadow-none ${selectedSubject === sub
-                                    ? "bg-[#0050e2] hover:bg-[#004edc] text-white"
+                            className={`rounded-num-30 font-medium py-1 h-auto px-3 transition-colors flex items-center justify-center w-full text-xs shadow-none ${selectedSubject === sub
+                                    ? "bg-[#0050e2] hover:bg-mediumslateblue text-white"
                                     : "bg-[#EAF2FF] hover:bg-blue-100 text-[#0050e2]"
                                 }`}
                         >
@@ -67,8 +67,8 @@ export default function FilterSidebar() {
                             key={cat}
                             variant={selectedCategory === cat ? "default" : "secondary"}
                             onClick={() => setSelectedCategory(cat)}
-                            className={`rounded-[30px] font-medium py-1 h-auto px-3 transition-colors flex items-center justify-center w-full text-xs shadow-none ${selectedCategory === cat
-                                    ? "bg-[#0050e2] hover:bg-[#004edc] text-white"
+                            className={`rounded-num-30 font-medium py-1 h-auto px-3 transition-colors flex items-center justify-center w-full text-xs shadow-none ${selectedCategory === cat
+                                    ? "bg-[#0050e2] hover:bg-mediumslateblue text-white"
                                     : "bg-[#EAF2FF] hover:bg-blue-100 text-[#0050e2]"
                                 }`}
                         >
@@ -86,11 +86,11 @@ export default function FilterSidebar() {
                         setSelectedSubject("");
                         setSelectedCategory("");
                     }}
-                    className="flex-1 rounded-[30px] bg-white border border-[#0050e2]/20 hover:border-[#0050e2] hover:bg-transparent text-[#0050e2] font-bold py-2 px-4 h-auto transition-colors shadow-none"
+                    className="flex-1 rounded-num-30 bg-white border border-[#0050e2]/20 hover:border-[#0050e2] hover:bg-transparent text-[#0050e2] font-bold py-2 px-4 h-auto transition-colors shadow-none"
                 >
                     Đặt lại bộ lọc
                 </Button>
-                <Button className="flex-1 rounded-[30px] bg-[#0050e2] hover:bg-[#004edc] text-white font-bold py-2 px-4 h-auto transition-colors shadow-none text-xs">
+                <Button className="flex-1 rounded-num-30 bg-[#0050e2] hover:bg-mediumslateblue text-white font-bold py-2 px-4 h-auto transition-colors shadow-none text-xs">
                     Lọc kết quả
                 </Button>
             </div>

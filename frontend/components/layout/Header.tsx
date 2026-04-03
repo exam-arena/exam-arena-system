@@ -47,42 +47,42 @@ export default function Header() {
   ], [isLoggedIn]);
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-[5rem] overflow-hidden">
+    <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-20 overflow-hidden">
       {/* ─── Desktop ─── */}
-      <div className="hidden lg:flex items-center justify-between h-full px-[6rem] max-w-[1920px] mx-auto gap-[1.5rem]">
+      <div className="hidden lg:flex items-center justify-between h-full px-24 max-w-480 mx-auto gap-6">
 
         {/* Logo */}
-        <Link href="/" className="flex flex-col shrink-0 items-center justify-center p-[0.625rem] w-[11.75rem]">
-          <div className="flex flex-col items-center justify-center gap-[0.25rem]">
+        <Link href="/" className="flex flex-col shrink-0 items-center justify-center p-2.5 w-47">
+          <div className="flex flex-col items-center justify-center gap-1">
             <Image
               src="/logoamban.png"
               alt="Exam Arena"
               width={168}
               height={24}
               priority
-              className="w-[10.5rem] relative max-h-full object-cover"
+              className="w-42 relative max-h-full object-cover"
             />
-            <span className="text-[0.625rem] text-white font-medium tracking-widest uppercase leading-[0.875rem] mt-1">
+            <span className="text-[0.625rem] text-white font-medium tracking-widest uppercase leading-3.5 mt-1">
               Hệ thống luyện thi THPTQG
             </span>
           </div>
         </Link>
 
         {/* Nav */}
-        <nav className="flex items-center justify-center gap-[2.5rem] h-[1.25rem] text-[1rem] font-bold text-white">
+        <nav className="flex items-center justify-center gap-10 h-5 text-[1rem] font-bold text-white">
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href} className="flex items-center justify-center hover:text-[#FFD600] transition-colors">
-              <span className="leading-[1.25rem] whitespace-nowrap">{link.label}</span>
+              <span className="leading-5 whitespace-nowrap">{link.label}</span>
             </Link>
           ))}
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center justify-end gap-[0.75rem] w-[25rem]">
+        <div className="flex items-center justify-end gap-3 w-100">
 
           {/* Search Bar - Hiện ở cả 2 trạng thái */}
-          <div className="relative flex items-center h-[2.25rem] w-[16.938rem] rounded-[30px] bg-white/20 px-[1rem] gap-[0.25rem] shrink-0 overflow-hidden">
-            <Search className="size-[1.25rem] text-white/70 shrink-0" />
+          <div className="relative flex items-center h-9 w-[16.938rem] rounded-num-30 bg-white/20 px-4 gap-1 shrink-0 overflow-hidden">
+            <Search className="size-5 text-white/70 shrink-0" />
             <Input
               type="text"
               value={searchQuery}
@@ -98,15 +98,15 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="h-[2.25rem] rounded-[30px] bg-white/20 border border-white box-border flex items-center justify-center py-[0.5rem] px-[0.75rem] gap-[0.5rem] shrink-0 cursor-pointer hover:bg-white/30 transition-colors group"
+                  className="h-9 rounded-num-30 bg-white/20 border border-white box-border flex items-center justify-center py-2 px-3 gap-2 shrink-0 cursor-pointer hover:bg-white/30 transition-colors group"
                 >
                   <div className="flex items-center gap-[0.35rem] shrink-0">
-                    <div className="size-[1.5rem] bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
-                      <User className="size-[1rem] text-white" />
+                    <div className="size-6 bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
+                      <User className="size-4 text-white" />
                     </div>
                     <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.fullname}</span>
                   </div>
-                  <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-[2px] transition-transform" />
+                  <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-0.5 transition-transform" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
@@ -125,8 +125,8 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild className="h-[2.25rem] px-[1.5rem] rounded-[30px] bg-[#FFD600] text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D] border-none shrink-0">
-              <Link href="/login" className="!text-[#004EDC]">Đăng nhập</Link>
+            <Button asChild className="h-9 px-6 rounded-num-30 bg-[#FFD600] text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D] border-none shrink-0">
+              <Link href="/login" className="text-[#004EDC]!">Đăng nhập</Link>
             </Button>
           )}
 
@@ -159,7 +159,7 @@ export default function Header() {
             </div>
           ) : (
             <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold hover:bg-[#FFE44D] border-none">
-              <Link href="/login" className="!text-[#004EDC]">Đăng nhập</Link>
+              <Link href="/login" className="text-[#004EDC]!">Đăng nhập</Link>
             </Button>
           )}
 

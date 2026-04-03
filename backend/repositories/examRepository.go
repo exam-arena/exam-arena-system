@@ -1,34 +1,102 @@
 package repositories
 
 import (
+	"context"
+	"time"
+
 	"backend/config"
-	"backend/models"
 )
 
-func CountExamsByRoomID(roomID string) (int64, error) {
-	var total int64
+type RoomExamListRow struct {
+	ExamID     string
+	RoomID     string
+	Title      string
+	Type       string
+	Duration   int
+	StartTime  *time.Time
+	TotalCount int64
+}
 
-	if err := config.DB.Model(&models.Exam{}).Where("room_id = ?", roomID).Count(&total).Error; err != nil {
+type RoomExamMetaRow struct {
+	RoomExists bool
+	TotalCount int64
+}
+
+func CountExamsByRoomID(ctx context.Context, roomID string) (int64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var total int64
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT COUNT(*)
+		FROM exam e
+		WHERE e.room_id = ?
+		  AND e.deleted_at IS NULL
+	`, roomID).Scan(&total).Error
+	if err != nil {
 		return 0, err
 	}
 
 	return total, nil
 }
 
-func ListExamsByRoomID(roomID string, page, limit int) ([]models.Exam, error) {
-	var exams []models.Exam
+func ListExamsByRoomID(ctx context.Context, roomID string, page, limit int) ([]RoomExamListRow, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	rows := make([]RoomExamListRow, 0)
 	offset := (page - 1) * limit
-	err := config.DB.
-		Select("exam_id", "room_id", "title", "type", "duration", "start_time").
-		Where("room_id = ?", roomID).
-		Order("start_time DESC NULLS LAST").
-		Order("exam_id DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&exams).Error
+
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT
+			e.exam_id,
+			e.room_id,
+			e.title,
+			e.type,
+			e.duration,
+			e.start_time,
+			COUNT(*) OVER() AS total_count
+		FROM exam e
+		WHERE e.room_id = ?
+		  AND e.deleted_at IS NULL
+		ORDER BY e.start_time DESC NULLS LAST, e.exam_id DESC
+		LIMIT ? OFFSET ?
+	`, roomID, limit, offset).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
 
-	return exams, nil
+	return rows, nil
+}
+
+func GetRoomExamMeta(ctx context.Context, roomID string) (*RoomExamMetaRow, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var row RoomExamMetaRow
+
+	err := config.DB.WithContext(ctx).Raw(`
+		WITH room_scope AS (
+			SELECT r.room_id
+			FROM exam_room r
+			WHERE r.room_id = ?
+			  AND r.deleted_at IS NULL
+		)
+		SELECT
+			EXISTS(SELECT 1 FROM room_scope) AS room_exists,
+			(
+				SELECT COUNT(*)
+				FROM exam e
+				WHERE e.room_id IN (SELECT room_id FROM room_scope)
+				  AND e.deleted_at IS NULL
+			) AS total_count
+	`, roomID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &row, nil
 }
