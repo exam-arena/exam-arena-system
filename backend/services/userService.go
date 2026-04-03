@@ -1,15 +1,25 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"backend/models"
 	"backend/repositories"
 	"backend/utils"
 )
 
-// ================== INPUT ==================
+const defaultRegisterDBTimeout = 1200 * time.Millisecond
+const defaultRegisterHashWaitTimeout = 2 * time.Second
+const defaultLoginDBTimeout = 800 * time.Millisecond
+const defaultLoginPasswordWaitTimeout = 2 * time.Second
+
+// Precomputed bcrypt hash for "not_the_real_password".
+const dummyLoginPasswordHash = "$2a$10$TeGxO.HiAGd3ujM2s62gW.zj.gSCkJvvrqdouiuwvUQY6SkpQsOOG"
 
 type RegisterInput struct {
 	Username string
@@ -22,8 +32,6 @@ type LoginInput struct {
 	Identifier string
 	Password   string
 }
-
-// ================== RESPONSE ==================
 
 type LoginResponse struct {
 	Token string       `json:"-"`
@@ -38,8 +46,6 @@ type UserResponse struct {
 	Role     string `json:"role"`
 }
 
-// ================== ERRORS ==================
-
 var (
 	ErrMissingFields      = errors.New("Vui lòng điền đầy đủ thông tin")
 	ErrInvalidEmail       = errors.New("Định dạng email không hợp lệ")
@@ -52,17 +58,18 @@ var (
 	ErrInternal           = errors.New("Đã xảy ra lỗi, vui lòng thử lại")
 )
 
-// ================== REGISTER ==================
+var loginPasswordCheckTokens = make(chan struct{}, getEnvInt("LOGIN_PASSWORD_CHECK_MAX_CONCURRENCY", 128))
+var registerHashTokens = make(chan struct{}, getEnvInt("REGISTER_PASSWORD_HASH_MAX_CONCURRENCY", 64))
 
-func RegisterUser(input RegisterInput) error {
+func RegisterUser(ctx context.Context, input RegisterInput) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-	// ===== 1. Normalize =====
 	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
 	input.Username = strings.TrimSpace(input.Username)
 	input.Fullname = strings.TrimSpace(input.Fullname)
-	// ❗ KHÔNG TRIM PASSWORD
 
-	// ===== 2. Validate =====
 	if input.Email == "" || input.Password == "" || input.Username == "" || input.Fullname == "" {
 		return ErrMissingFields
 	}
@@ -83,31 +90,11 @@ func RegisterUser(input RegisterInput) error {
 		return ErrInvalidFullname
 	}
 
-	// ===== 3. Check email tồn tại =====
-	emailExists, err := repositories.IsEmailExists(input.Email)
-	if err != nil {
-		return ErrInternal
-	}
-	if emailExists {
-		return ErrEmailExists
-	}
-
-	// ===== 4. Check username tồn tại =====
-	usernameExists, err := repositories.IsUsernameExists(input.Username)
-	if err != nil {
-		return ErrInternal
-	}
-	if usernameExists {
-		return ErrUsernameExists
-	}
-
-	// ===== 5. Hash password =====
-	hashedPassword, err := utils.HashPassword(input.Password)
+	hashedPassword, err := hashRegisterPassword(ctx, input.Password)
 	if err != nil {
 		return ErrInternal
 	}
 
-	// ===== 6. Tạo user =====
 	user := models.User{
 		Username: input.Username,
 		Email:    input.Email,
@@ -116,49 +103,69 @@ func RegisterUser(input RegisterInput) error {
 		Role:     "student",
 	}
 
-	// ===== 7. Lưu DB =====
-	if err := repositories.CreateUser(&user); err != nil {
-		return ErrInternal
+	if err := createUserWithTimeout(ctx, &user); err != nil {
+		switch {
+		case errors.Is(err, repositories.ErrUserEmailConflict):
+			utils.RecordRegisterConflict()
+			return ErrEmailExists
+		case errors.Is(err, repositories.ErrUserUsernameConflict):
+			utils.RecordRegisterConflict()
+			return ErrUsernameExists
+		default:
+			return ErrInternal
+		}
 	}
 
+	utils.RecordRegisterSuccess()
 	return nil
 }
 
-// ================== LOGIN ==================
+func LoginUser(ctx context.Context, input LoginInput) (*LoginResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-func LoginUser(input LoginInput) (*LoginResponse, error) {
-
-	// ===== 1. Normalize =====
 	identifier := strings.TrimSpace(input.Identifier)
-	password := input.Password //  KHÔNG TRIM
+	password := input.Password
+	if strings.Contains(identifier, "@") {
+		identifier = strings.ToLower(identifier)
+	}
 
 	if identifier == "" || password == "" {
 		return nil, ErrMissingFields
 	}
 
-	// ===== 2. Tìm user =====
-	user, err := repositories.GetUserByIdentifier(identifier)
+	user, err := getLoginUserWithTimeout(ctx, identifier)
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	// Không leak info
+	hashToCheck := dummyLoginPasswordHash
+	if user != nil && strings.TrimSpace(user.Password) != "" {
+		hashToCheck = user.Password
+	}
+
+	if err := checkLoginPassword(ctx, password, hashToCheck); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return nil, ErrInternal
+		}
+
+		utils.RecordLoginFailure()
+		return nil, ErrInvalidCredentials
+	}
+
 	if user == nil {
+		utils.RecordLoginFailure()
 		return nil, ErrInvalidCredentials
 	}
 
-	// ===== 3. Check password =====
-	if err := utils.CheckPassword(password, user.Password); err != nil {
-		return nil, ErrInvalidCredentials
-	}
-
-	// ===== 4. Generate JWT =====
 	token, err := utils.GenerateJWT(user)
 	if err != nil {
 		return nil, ErrInternal
 	}
 
-	// ===== 5. Return đúng contract =====
+	utils.RecordLoginSuccess()
+
 	return &LoginResponse{
 		Token: token,
 		User: UserResponse{
@@ -169,4 +176,116 @@ func LoginUser(input LoginInput) (*LoginResponse, error) {
 			Role:     user.Role,
 		},
 	}, nil
+}
+
+func createUserWithTimeout(ctx context.Context, user *models.User) error {
+	dbCtx, cancel := context.WithTimeout(ctx, getEnvDurationMs("REGISTER_DB_TIMEOUT_MS", defaultRegisterDBTimeout))
+	defer cancel()
+
+	startedAt := time.Now()
+	err := repositories.CreateUserWithContext(dbCtx, user)
+	utils.RecordRegisterDBLatency(time.Since(startedAt).Milliseconds())
+
+	return err
+}
+
+func hashRegisterPassword(ctx context.Context, password string) (string, error) {
+	waitStartedAt := time.Now()
+
+	utils.IncRegisterHashWaiters()
+	acquireCtx, cancel := context.WithTimeout(ctx, getEnvDurationMs("REGISTER_HASH_WAIT_TIMEOUT_MS", defaultRegisterHashWaitTimeout))
+	defer cancel()
+
+	select {
+	case registerHashTokens <- struct{}{}:
+		utils.DecRegisterHashWaiters()
+		utils.RecordRegisterHashWait(time.Since(waitStartedAt).Milliseconds())
+		defer func() {
+			<-registerHashTokens
+			utils.DecRegisterHashInFlight()
+		}()
+		utils.IncRegisterHashInFlight()
+	case <-acquireCtx.Done():
+		utils.DecRegisterHashWaiters()
+		utils.RecordRegisterHashWait(time.Since(waitStartedAt).Milliseconds())
+		return "", acquireCtx.Err()
+	}
+
+	hashStartedAt := time.Now()
+	hashedPassword, err := utils.HashPassword(password)
+	utils.RecordRegisterHashLatency(time.Since(hashStartedAt).Milliseconds())
+
+	return hashedPassword, err
+}
+
+func getLoginUserWithTimeout(ctx context.Context, identifier string) (*models.User, error) {
+	dbCtx, cancel := context.WithTimeout(ctx, getEnvDurationMs("LOGIN_DB_TIMEOUT_MS", defaultLoginDBTimeout))
+	defer cancel()
+
+	startedAt := time.Now()
+	user, err := repositories.GetUserByIdentifierWithContext(dbCtx, identifier)
+	utils.RecordLoginDBLatency(time.Since(startedAt).Milliseconds())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func checkLoginPassword(ctx context.Context, password, hashedPassword string) error {
+	waitStartedAt := time.Now()
+
+	utils.IncLoginPasswordWaiters()
+	acquireCtx, cancel := context.WithTimeout(ctx, getEnvDurationMs("LOGIN_PASSWORD_WAIT_TIMEOUT_MS", defaultLoginPasswordWaitTimeout))
+	defer cancel()
+
+	select {
+	case loginPasswordCheckTokens <- struct{}{}:
+		utils.DecLoginPasswordWaiters()
+		utils.RecordLoginPasswordWait(time.Since(waitStartedAt).Milliseconds())
+		defer func() {
+			<-loginPasswordCheckTokens
+			utils.DecLoginPasswordInFlight()
+		}()
+		utils.IncLoginPasswordInFlight()
+	case <-acquireCtx.Done():
+		utils.DecLoginPasswordWaiters()
+		utils.RecordLoginPasswordWait(time.Since(waitStartedAt).Milliseconds())
+		return acquireCtx.Err()
+	}
+
+	checkStartedAt := time.Now()
+	err := utils.CheckPassword(password, hashedPassword)
+	utils.RecordLoginPasswordLatency(time.Since(checkStartedAt).Milliseconds())
+
+	return err
+}
+
+func getEnvInt(key string, fallback int) int {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+
+	return value
+}
+
+func getEnvDurationMs(key string, fallback time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+
+	return time.Duration(value) * time.Millisecond
 }
