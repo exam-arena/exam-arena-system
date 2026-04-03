@@ -78,6 +78,9 @@ export default async function ExamInfoPage({
 
                   <ExamInfoTabs
                     examId={id}
+                    examType={exam.type}
+                    examStartTime={exam.startTime}
+                    examDurationSeconds={exam.durationSeconds}
                     examDuration={exam.durationLabel}
                     totalQuestions={exam.totalQuestions}
                     participantCount={exam.participantCount}

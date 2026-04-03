@@ -17,7 +17,9 @@ type AttemptRow struct {
 	Status    string
 	StartedAt time.Time
 	ExamTitle string
+	ExamType  string
 	Duration  int
+	StartTime *time.Time
 	Username  string
 	Fullname  string
 	Email     string
@@ -137,6 +139,54 @@ type AttemptAnswerRow struct {
 	SelectedAns string
 }
 
+type ExamAttemptPolicyRow struct {
+	ExamID    string
+	Type      string
+	Duration  int
+	StartTime *time.Time
+}
+
+const effectiveAttemptDeadlineSQL = `
+CASE
+	WHEN LOWER(COALESCE(e.type, '')) IN ('mock_test', 'official') AND e.start_time IS NOT NULL
+	THEN LEAST(
+		ea.started_at + (e.duration * INTERVAL '1 second'),
+		e.start_time + (e.duration * INTERVAL '1 second')
+	)
+	ELSE ea.started_at + (e.duration * INTERVAL '1 second')
+END
+`
+
+func GetExamAttemptPolicyByID(ctx context.Context, examID string) (*ExamAttemptPolicyRow, error) {
+	if _, err := uuid.Parse(examID); err != nil {
+		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var row ExamAttemptPolicyRow
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT
+			e.exam_id,
+			e.type,
+			e.duration,
+			e.start_time
+		FROM exam e
+		WHERE e.exam_id = ?::uuid
+		  AND e.deleted_at IS NULL
+		LIMIT 1
+	`, examID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	if row.ExamID == "" {
+		return nil, nil
+	}
+
+	return &row, nil
+}
+
 func GetOrCreateInProgressAttempt(ctx context.Context, userID, examID string) (*AttemptRow, error) {
 	if _, err := uuid.Parse(userID); err != nil {
 		return nil, nil
@@ -165,7 +215,7 @@ func GetOrCreateInProgressAttempt(ctx context.Context, userID, examID string) (*
 				gen_random_uuid(),
 				?::uuid,
 				e.exam_id,
-				'practice',
+				e.type,
 				0,
 				'in_progress',
 				CURRENT_TIMESTAMP,
@@ -232,7 +282,9 @@ func GetAttemptByID(ctx context.Context, attemptID string) (*AttemptRow, error) 
 			a.status,
 			a.started_at,
 			e.title AS exam_title,
+			e.type AS exam_type,
 			e.duration,
+			e.start_time,
 			u.username,
 			u.fullname,
 			u.email,
@@ -317,7 +369,7 @@ func ResolveAttemptAnswersAuthorized(ctx context.Context, attemptID, userID stri
 				attempt_id,
 				user_id,
 				status,
-				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+`+effectiveAttemptDeadlineSQL+` AS expires_at
 			FROM exam_attempt ea
 			JOIN exam e ON e.exam_id = ea.exam_id
 			WHERE ea.attempt_id = ?::uuid
@@ -448,7 +500,7 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 				attempt_id,
 				user_id,
 				status,
-				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+`+effectiveAttemptDeadlineSQL+` AS expires_at
 			FROM exam_attempt ea
 			JOIN exam e ON e.exam_id = ea.exam_id
 			WHERE ea.attempt_id = ?::uuid
@@ -611,7 +663,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				attempt_id,
 				user_id,
 				status,
-				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+`+effectiveAttemptDeadlineSQL+` AS expires_at
 			FROM exam_attempt ea
 			JOIN exam e ON e.exam_id = ea.exam_id
 			WHERE ea.attempt_id = ?::uuid
@@ -781,7 +833,7 @@ func SubmitAttemptAuthorized(ctx context.Context, attemptID, userID string) (*Su
 				ea.status,
 				ea.started_at,
 				ea.end_at,
-				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+`+effectiveAttemptDeadlineSQL+` AS expires_at
 			FROM exam_attempt ea
 			JOIN exam e ON e.exam_id = ea.exam_id
 			WHERE ea.attempt_id = ?::uuid
@@ -875,12 +927,12 @@ func AutoSubmitExpiredAttempts(ctx context.Context, limit int) ([]AutoSubmittedA
 			SELECT
 				ea.attempt_id,
 				ea.user_id,
-				ea.started_at + (e.duration * INTERVAL '1 second') AS expires_at
+`+effectiveAttemptDeadlineSQL+` AS expires_at
 			FROM exam_attempt ea
 			JOIN exam e ON e.exam_id = ea.exam_id
 			WHERE ea.status = 'in_progress'
-			  AND CURRENT_TIMESTAMP >= ea.started_at + (e.duration * INTERVAL '1 second')
-			ORDER BY ea.started_at
+			  AND CURRENT_TIMESTAMP >= `+effectiveAttemptDeadlineSQL+`
+			ORDER BY expires_at, ea.started_at
 			LIMIT ?
 		),
 		updated_sections AS (

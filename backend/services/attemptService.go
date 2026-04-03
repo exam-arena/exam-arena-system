@@ -27,6 +27,8 @@ var (
 	ErrAttemptClosed        = errors.New("attempt is not in progress")
 	ErrAttemptNotSubmitted  = errors.New("attempt is not submitted")
 	ErrInvalidAnswerPayload = errors.New("answers payload is invalid")
+	ErrExamNotStarted       = errors.New("exam not started")
+	ErrExamEnded            = errors.New("exam ended")
 	startAttemptGroup       singleflight.Group
 	saveAnswersGroup        singleflight.Group
 	submitAttemptGroup      singleflight.Group
@@ -198,12 +200,27 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 			return nil, err
 		}
 
+		examPolicy, err := repositories.GetExamAttemptPolicyByID(ctx, input.ExamID)
+		if err != nil {
+			return nil, err
+		}
+		if examPolicy == nil {
+			return nil, ErrExamNotFound
+		}
+		if err := validateAttemptStartWindow(time.Now().UTC(), examPolicy); err != nil {
+			return nil, err
+		}
+
 		releaseLock, err := acquireStartAttemptLock(ctx, input.UserID, input.ExamID)
 		if err != nil {
 			return nil, err
 		}
 		if releaseLock != nil {
 			defer releaseLock()
+		}
+
+		if err := validateAttemptStartWindow(time.Now().UTC(), examPolicy); err != nil {
+			return nil, err
 		}
 
 		attempt, err := repositories.GetOrCreateInProgressAttempt(ctx, input.UserID, input.ExamID)
@@ -689,11 +706,18 @@ func buildAttemptDetailResponse(ctx context.Context, input GetAttemptDetailInput
 		userAnswers[answer.QuestionID] = selectedAns
 	}
 
+	effectiveDurationSeconds := computeAttemptDurationSeconds(
+		attempt.ExamType,
+		attempt.StartedAt,
+		attempt.StartTime,
+		attempt.Duration,
+	)
+
 	detail := &AttemptDetailResponse{
 		AttemptID:       attempt.AttemptID,
 		Title:           attempt.ExamTitle,
-		DurationMinutes: attempt.Duration / 60,
-		DurationSeconds: attempt.Duration,
+		DurationMinutes: effectiveDurationSeconds / 60,
+		DurationSeconds: effectiveDurationSeconds,
 		Status:          attempt.Status,
 		StartedAt:       attempt.StartedAt,
 		ServerTime:      time.Now().UTC(),
@@ -709,6 +733,59 @@ func buildAttemptDetailResponse(ctx context.Context, input GetAttemptDetailInput
 
 	storeAttemptDetailInCache(ctx, cacheKey, detail)
 	return detail, nil
+}
+
+func validateAttemptStartWindow(now time.Time, examPolicy *repositories.ExamAttemptPolicyRow) error {
+	if examPolicy == nil {
+		return ErrExamNotFound
+	}
+	if !usesExamWindow(examPolicy.Type) {
+		return nil
+	}
+	if examPolicy.StartTime == nil {
+		return nil
+	}
+
+	startTime := examPolicy.StartTime.UTC()
+	deadline := startTime.Add(time.Duration(examPolicy.Duration) * time.Second)
+	if now.Before(startTime) {
+		return ErrExamNotStarted
+	}
+	if !now.Before(deadline) {
+		return ErrExamEnded
+	}
+
+	return nil
+}
+
+func computeAttemptDurationSeconds(examType string, startedAt time.Time, examStartTime *time.Time, configuredDuration int) int {
+	if configuredDuration <= 0 {
+		return 0
+	}
+	if !usesExamWindow(examType) || examStartTime == nil {
+		return configuredDuration
+	}
+
+	examDeadline := examStartTime.UTC().Add(time.Duration(configuredDuration) * time.Second)
+	attemptDeadline := startedAt.UTC().Add(time.Duration(configuredDuration) * time.Second)
+	if examDeadline.Before(attemptDeadline) {
+		remaining := int(examDeadline.Sub(startedAt.UTC()).Seconds())
+		if remaining < 0 {
+			return 0
+		}
+		return remaining
+	}
+
+	return configuredDuration
+}
+
+func usesExamWindow(examType string) bool {
+	switch strings.ToLower(strings.TrimSpace(examType)) {
+	case "mock_test", "official":
+		return true
+	default:
+		return false
+	}
 }
 
 func GetAttemptResult(ctx context.Context, input GetAttemptDetailInput) (*AttemptResultResponse, error) {

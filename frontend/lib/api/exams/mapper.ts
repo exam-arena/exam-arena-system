@@ -39,6 +39,7 @@ export function mapExamToListItem(raw: ExamRaw): ExamListItem {
     type: raw.type,
     typeLabel: formatExamType(raw.type),
     capacity: raw.capacity,
+    durationSeconds: raw.duration,
     durationMinutes,
     durationLabel: `${durationMinutes} phút`,
     totalQuestions: countRootQuestions(raw),
