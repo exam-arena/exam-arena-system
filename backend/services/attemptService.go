@@ -1165,11 +1165,16 @@ func runExpiredAttemptSweep(parent context.Context) {
 
 		for _, row := range rows {
 			invalidateAttemptCachesForUser(row.UserID, row.AttemptID)
-			if err := setAttemptPostSubmitFlushAllowed(ctxOrBackground(parent), row.AttemptID); err == nil {
-				if flushErr := FlushAttemptAnswersForAttempt(ctxOrBackground(parent), row.AttemptID, row.UserID); flushErr != nil {
-					log.Printf("[WARN] attempt auto-submit worker flush failed for %s: %v", row.AttemptID, flushErr)
-				}
+			if err := setAttemptPostSubmitFlushAllowed(ctxOrBackground(parent), row.AttemptID); err != nil {
+				log.Printf("[WARN] attempt auto-submit worker cannot enable post-submit flush for %s: %v", row.AttemptID, err)
+				continue
 			}
+
+			if flushErr := FlushAttemptAnswersForAttempt(ctxOrBackground(parent), row.AttemptID, row.UserID); flushErr != nil {
+				log.Printf("[WARN] attempt auto-submit worker flush failed for %s: %v", row.AttemptID, flushErr)
+				continue
+			}
+
 			clearAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID)
 			_ = setAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID, submitAttemptStatusDone)
 		}
