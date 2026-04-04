@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -38,7 +38,7 @@ interface GroupedQuestion {
 
 const SECTION_1_TITLE = "Phần I: Câu trắc nghiệm nhiều phương án lựa chọn";
 const SECTION_1_DESC = "Thí sinh trả lời các câu hỏi. Mỗi câu hỏi thí sinh chỉ chọn một phương án.";
-const SECTION_2_TITLE = "Phần II: Câu trắc nghiệm Đúng - Sai";
+const SECTION_2_TITLE = "Phần II: Câu trắc nghiệm đúng - Sai";
 const SECTION_2_DESC = "Trong mỗi ý a, b, c, d ở mỗi câu, thí sinh chọn đúng hoặc sai.";
 const SECTION_3_TITLE = "Phần III: Câu trắc nghiệm trả lời ngắn";
 const SECTION_3_DESC = "Thí sinh điền đáp án dạng số vào ô trống.";
@@ -127,7 +127,7 @@ export default function ReviewPage() {
             }
             pollTimerRef.current = window.setTimeout(() => {
                 void fetchReview();
-            }, 3000);
+            }, 5000);
         };
 
         const fetchReview = async () => {

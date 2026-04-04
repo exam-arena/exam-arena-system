@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -41,7 +41,7 @@ export default function ExamResultPage() {
       }
       pollTimerRef.current = window.setTimeout(() => {
         void fetchResult();
-      }, 3000);
+      }, 5000);
     };
 
     const fetchResult = async () => {
@@ -188,7 +188,7 @@ export default function ExamResultPage() {
 
                 <div className="flex flex-wrap items-center gap-3 w-full">
                   <div className="rounded-num-30 border border-transparent bg-[#e7f0ff] text-[#0050e2] py-2 px-5 text-[1rem] leading-7 font-bold flex items-center justify-center">
-                    Kết quả đề thi
+                    Kết quả Đề thi
                   </div>
                   <Link
                     href={`/attempts/${id}/review`}
