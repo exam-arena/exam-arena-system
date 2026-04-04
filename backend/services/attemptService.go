@@ -483,6 +483,11 @@ func saveAttemptAnswersDirect(
 		if len(savedResult.Rows) != len(changedRows) {
 			return nil, ErrInvalidAnswerPayload
 		}
+
+		invalidateAttemptDetailCache(userID, attemptID)
+		invalidateAttemptDetailPayloadCache(userID, attemptID)
+		invalidateAttemptReviewCache(userID, attemptID)
+		invalidateAttemptResultCache(userID, attemptID)
 	}
 
 	return &SaveAttemptAnswersResponse{
@@ -632,6 +637,11 @@ func SubmitAttempt(ctx context.Context, input SubmitAttemptInput) (*SubmitAttemp
 		return buildSubmitAttemptStatusResponse(input.AttemptID, submitAttemptStatusQueued), nil
 	}
 
+	if err := setAttemptPostSubmitFlushAllowed(ctx, input.AttemptID); err != nil {
+		clearAttemptSubmitStatus(ctx, input.AttemptID)
+		return nil, err
+	}
+
 	if err := enqueueSubmitAttempt(ctx, input.UserID, input.AttemptID); err != nil {
 		clearAttemptSubmitStatus(ctx, input.AttemptID)
 		return nil, err
@@ -723,6 +733,10 @@ func buildAttemptSubmitStatusKey(attemptID string) string {
 	return "attempt-status:" + attemptID
 }
 
+func buildAttemptPostSubmitFlushKey(attemptID string) string {
+	return "attempt-post-submit-flush:" + attemptID
+}
+
 func buildAttemptAnswersBufferKey(attemptID string) string {
 	return "attempt-answers-buffer:" + attemptID
 }
@@ -767,6 +781,39 @@ func setAttemptSubmitStatus(ctx context.Context, attemptID, status string) error
 	return config.RedisClient.Set(redisCtx, buildAttemptSubmitStatusKey(attemptID), status, submitAttemptStatusTTL).Err()
 }
 
+func setAttemptPostSubmitFlushAllowed(ctx context.Context, attemptID string) error {
+	if !config.RedisEnabled || config.RedisClient == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	redisCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	return config.RedisClient.Set(redisCtx, buildAttemptPostSubmitFlushKey(attemptID), "1", submitAttemptStatusTTL).Err()
+}
+
+func isAttemptPostSubmitFlushAllowed(ctx context.Context, attemptID string) (bool, error) {
+	if !config.RedisEnabled || config.RedisClient == nil {
+		return false, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	redisCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	exists, err := config.RedisClient.Exists(redisCtx, buildAttemptPostSubmitFlushKey(attemptID)).Result()
+	if err != nil {
+		return false, err
+	}
+
+	return exists > 0, nil
+}
+
 func setAttemptSubmitStatusNX(ctx context.Context, attemptID, status string) (bool, error) {
 	if !config.RedisEnabled || config.RedisClient == nil {
 		return false, nil
@@ -792,7 +839,7 @@ func clearAttemptSubmitStatus(ctx context.Context, attemptID string) {
 	redisCtx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
-	_ = config.RedisClient.Del(redisCtx, buildAttemptSubmitStatusKey(attemptID)).Err()
+	_ = config.RedisClient.Del(redisCtx, buildAttemptSubmitStatusKey(attemptID), buildAttemptPostSubmitFlushKey(attemptID)).Err()
 }
 
 func ClearAttemptSubmitStatus(ctx context.Context, attemptID string) {
@@ -868,7 +915,12 @@ func FlushDirtyAttemptAnswers(ctx context.Context, limit int) (int, error) {
 			continue
 		}
 
-		if errors.Is(err, ErrAttemptClosed) || errors.Is(err, ErrAttemptNotFound) || errors.Is(err, ErrAttemptForbidden) || errors.Is(err, ErrInvalidAnswerPayload) {
+		if errors.Is(err, ErrAttemptClosed) {
+			requeueDirtyAttempt(ctx, attemptID)
+			continue
+		}
+
+		if errors.Is(err, ErrAttemptNotFound) || errors.Is(err, ErrAttemptForbidden) || errors.Is(err, ErrInvalidAnswerPayload) {
 			clearAttemptAnswerBuffer(ctx, attemptID)
 			continue
 		}
@@ -899,7 +951,12 @@ func flushAttemptAnswerBuffer(ctx context.Context, attemptID, userID string) err
 		return nil
 	}
 
-	savedResult, err := repositories.UpsertAttemptAnswersAuthorized(ctx, attemptID, userID, bufferedAnswers)
+	allowPostSubmitFlush, err := isAttemptPostSubmitFlushAllowed(ctx, attemptID)
+	if err != nil {
+		return err
+	}
+
+	savedResult, err := repositories.UpsertAttemptAnswersAuthorized(ctx, attemptID, userID, bufferedAnswers, allowPostSubmitFlush)
 	if err != nil {
 		return err
 	}
@@ -916,6 +973,8 @@ func flushAttemptAnswerBuffer(ctx context.Context, attemptID, userID string) err
 	setAttemptAnswerFlushedAt(ctx, attemptID)
 	invalidateAttemptDetailCache(userID, attemptID)
 	invalidateAttemptDetailPayloadCache(userID, attemptID)
+	invalidateAttemptReviewCache(userID, attemptID)
+	invalidateAttemptResultCache(userID, attemptID)
 
 	return nil
 }
@@ -1031,6 +1090,10 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 		ctx = context.Background()
 	}
 
+	if err := setAttemptPostSubmitFlushAllowed(ctx, attemptID); err != nil {
+		return err
+	}
+
 	if err := FlushAttemptAnswersForAttempt(ctx, attemptID, userID); err != nil {
 		if !errors.Is(err, ErrAttemptClosed) && !errors.Is(err, ErrAttemptNotFound) && !errors.Is(err, ErrAttemptForbidden) {
 			return err
@@ -1055,6 +1118,7 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 		invalidateAttemptDetailPayloadCache(userID, attemptID)
 		invalidateAttemptReviewCache(userID, attemptID)
 		invalidateAttemptResultCache(userID, attemptID)
+		clearAttemptSubmitStatus(ctx, attemptID)
 		_ = setAttemptSubmitStatus(ctx, attemptID, submitAttemptStatusDone)
 		return nil
 	default:
@@ -1101,6 +1165,12 @@ func runExpiredAttemptSweep(parent context.Context) {
 
 		for _, row := range rows {
 			invalidateAttemptCachesForUser(row.UserID, row.AttemptID)
+			if err := setAttemptPostSubmitFlushAllowed(ctxOrBackground(parent), row.AttemptID); err == nil {
+				if flushErr := FlushAttemptAnswersForAttempt(ctxOrBackground(parent), row.AttemptID, row.UserID); flushErr != nil {
+					log.Printf("[WARN] attempt auto-submit worker flush failed for %s: %v", row.AttemptID, flushErr)
+				}
+			}
+			clearAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID)
 			_ = setAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID, submitAttemptStatusDone)
 		}
 

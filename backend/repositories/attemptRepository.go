@@ -635,7 +635,7 @@ func ListQuestionsByExamID(ctx context.Context, examID string) ([]AttemptQuestio
 	return rows, nil
 }
 
-func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID string, answers []SaveAttemptAnswerInput) (*SaveAttemptAnswersResult, error) {
+func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID string, answers []SaveAttemptAnswerInput, allowPostSubmitFlush bool) (*SaveAttemptAnswersResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -676,8 +676,10 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 			SELECT attempt_id
 			FROM attempt_guard
 			WHERE user_id = ?::uuid
-			  AND status = 'in_progress'
-			  AND CURRENT_TIMESTAMP < expires_at
+			  AND (
+				(status = 'in_progress' AND CURRENT_TIMESTAMP < expires_at)
+				OR (?::boolean AND status = 'submitted')
+			  )
 		),
 		payload AS (
 			SELECT
@@ -777,7 +779,18 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 		SELECT
 			EXISTS(SELECT 1 FROM attempt_guard) AS attempt_exists,
 			COALESCE((SELECT user_id = ?::uuid FROM attempt_guard), FALSE) AS is_owner,
-			COALESCE((SELECT status = 'in_progress' AND user_id = ?::uuid AND CURRENT_TIMESTAMP < expires_at FROM attempt_guard), FALSE) AS can_write,
+			COALESCE(
+				(
+					SELECT
+						(
+							(status = 'in_progress' AND CURRENT_TIMESTAMP < expires_at)
+							OR (?::boolean AND status = 'submitted')
+						)
+						AND user_id = ?::uuid
+					FROM attempt_guard
+				),
+				FALSE
+			) AS can_write,
 			COALESCE(
 				json_agg(
 					json_build_object(
@@ -788,7 +801,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				'[]'::json
 			)::text::bytea AS saved_rows_raw
 		FROM result_rows
-	`, attemptID, userID, string(payload), userID, userID).Scan(&queryResult).Error
+	`, attemptID, userID, allowPostSubmitFlush, string(payload), userID, allowPostSubmitFlush, userID).Scan(&queryResult).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1036,12 +1049,18 @@ func ListAttemptResultQuestions(ctx context.Context, attemptID string) ([]Attemp
 		JOIN question q
 		  ON q.section_id = s.section_id
 		 AND q.deleted_at IS NULL
-		LEFT JOIN attempt_section_log asl
-		  ON asl.attempt_id = a.attempt_id
-		 AND asl.section_id = s.section_id
-		LEFT JOIN attempt_detail ad
-		  ON ad.log_id = asl.log_id
-		 AND ad.question_id = q.question_id
+		LEFT JOIN LATERAL (
+			SELECT
+				ad.selected_ans
+			FROM attempt_section_log asl
+			JOIN attempt_detail ad
+			  ON ad.log_id = asl.log_id
+			 AND ad.question_id = q.question_id
+			WHERE asl.attempt_id = a.attempt_id
+			  AND asl.section_id = s.section_id
+			ORDER BY asl.started_at DESC NULLS LAST, asl.log_id DESC
+			LIMIT 1
+		) ad ON TRUE
 		WHERE a.attempt_id = ?::uuid
 		ORDER BY s.section_id, q.parent_id NULLS FIRST, q.question_id
 	`, attemptID).Scan(&rows).Error
@@ -1079,12 +1098,18 @@ func ListAttemptReviewQuestions(ctx context.Context, attemptID string) ([]Attemp
 		JOIN question q
 		  ON q.section_id = s.section_id
 		 AND q.deleted_at IS NULL
-		LEFT JOIN attempt_section_log asl
-		  ON asl.attempt_id = a.attempt_id
-		 AND asl.section_id = s.section_id
-		LEFT JOIN attempt_detail ad
-		  ON ad.log_id = asl.log_id
-		 AND ad.question_id = q.question_id
+		LEFT JOIN LATERAL (
+			SELECT
+				ad.selected_ans
+			FROM attempt_section_log asl
+			JOIN attempt_detail ad
+			  ON ad.log_id = asl.log_id
+			 AND ad.question_id = q.question_id
+			WHERE asl.attempt_id = a.attempt_id
+			  AND asl.section_id = s.section_id
+			ORDER BY asl.started_at DESC NULLS LAST, asl.log_id DESC
+			LIMIT 1
+		) ad ON TRUE
 		WHERE a.attempt_id = ?::uuid
 		ORDER BY s.section_id, q.parent_id NULLS FIRST, q.question_id
 	`, attemptID).Scan(&rows).Error
@@ -1119,17 +1144,18 @@ func ListAttemptAnswers(ctx context.Context, attemptID string) ([]AttemptAnswerR
 
 	rows := make([]AttemptAnswerRow, 0)
 	err := config.DB.WithContext(ctx).Raw(`
-		SELECT
+		SELECT DISTINCT ON (ad.question_id)
 			ad.question_id,
 			ad.selected_ans
-		FROM exam_attempt a
-		JOIN attempt_section_log asl
-		  ON asl.attempt_id = a.attempt_id
+		FROM attempt_section_log asl
 		JOIN attempt_detail ad
 		  ON ad.log_id = asl.log_id
-		WHERE a.attempt_id = ?::uuid
+		WHERE asl.attempt_id = ?::uuid
 		  AND COALESCE(TRIM(ad.selected_ans), '') <> ''
-		ORDER BY ad.question_id
+		ORDER BY
+			ad.question_id,
+			asl.started_at DESC NULLS LAST,
+			asl.log_id DESC
 	`, attemptID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
