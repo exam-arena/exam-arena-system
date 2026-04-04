@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -58,8 +59,9 @@ var (
 	ErrInternal           = errors.New("Đã xảy ra lỗi, vui lòng thử lại")
 )
 
-var loginPasswordCheckTokens = make(chan struct{}, getEnvInt("LOGIN_PASSWORD_CHECK_MAX_CONCURRENCY", 128))
-var registerHashTokens = make(chan struct{}, getEnvInt("REGISTER_PASSWORD_HASH_MAX_CONCURRENCY", 64))
+var authPasswordWorkTokens = make(chan struct{}, resolveAuthPasswordWorkConcurrency())
+var loginPasswordCheckTokens = authPasswordWorkTokens
+var registerHashTokens = authPasswordWorkTokens
 
 func RegisterUser(ctx context.Context, input RegisterInput) error {
 	if ctx == nil {
@@ -288,4 +290,25 @@ func getEnvDurationMs(key string, fallback time.Duration) time.Duration {
 	}
 
 	return time.Duration(value) * time.Millisecond
+}
+
+func resolveAuthPasswordWorkConcurrency() int {
+	if configured := getEnvInt("AUTH_PASSWORD_WORK_MAX_CONCURRENCY", 0); configured > 0 {
+		return configured
+	}
+
+	// bcrypt is CPU-bound, so auth should only consume part of the host.
+	// This keeps login/register bursts from starving exam-serving handlers that
+	// still run in the same process.
+	gomaxprocs := runtime.GOMAXPROCS(0)
+	if gomaxprocs <= 1 {
+		return 1
+	}
+
+	sharedBudget := gomaxprocs / 2
+	if sharedBudget < 2 {
+		sharedBudget = 2
+	}
+
+	return sharedBudget
 }
