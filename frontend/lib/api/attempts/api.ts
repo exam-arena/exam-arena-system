@@ -1,5 +1,6 @@
 import type {
   AttemptData,
+  AttemptProcessingData,
   AttemptResultData,
   AttemptReviewData,
   SaveAttemptAnswerInput,
@@ -38,17 +39,24 @@ export async function submitAttempt(
 ): Promise<SubmitAttemptData> {
   return apiRequest<SubmitAttemptData>(`/api/v1/attempts/${attemptId}/submit`, {
     method: "POST",
+    allowProcessing: true,
   });
 }
 
 export async function getAttemptResult(
   attemptId: string
-): Promise<AttemptResultData> {
-  return apiRequest<AttemptResultData>(`/api/v1/attempts/${attemptId}/result`);
+): Promise<AttemptResultData | AttemptProcessingData> {
+  return apiRequest<AttemptResultData | AttemptProcessingData>(
+    `/api/v1/attempts/${attemptId}/result`,
+    { allowProcessing: true }
+  );
 }
 
 export async function getAttemptReview(
   attemptId: string
-): Promise<AttemptReviewData> {
-  return apiRequest<AttemptReviewData>(`/api/v1/attempts/${attemptId}/review`);
+): Promise<AttemptReviewData | AttemptProcessingData> {
+  return apiRequest<AttemptReviewData | AttemptProcessingData>(
+    `/api/v1/attempts/${attemptId}/review`,
+    { allowProcessing: true }
+  );
 }

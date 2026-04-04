@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Sidebar } from "@/components/attempt/sidebar/Sidebar";
 import { Question } from "@/components/attempt/content/Question";
@@ -13,7 +13,7 @@ import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getAttemptReview } from "@/lib/api/attempts/api";
-import type { AttemptQuestion, AttemptReviewData } from "@/lib/api/attempts/types";
+import type { AttemptProcessingData, AttemptQuestion, AttemptReviewData } from "@/lib/api/attempts/types";
 
 interface GroupedQuestionChild {
     id: string;
@@ -110,23 +110,65 @@ export default function ReviewPage() {
 
     const [reviewData, setReviewData] = useState<AttemptReviewData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const pollTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!id) {
             return;
         }
 
-        getAttemptReview(id)
-            .then((response) => {
+        let isMounted = true;
+
+        const schedulePoll = () => {
+            if (pollTimerRef.current !== null) {
+                window.clearTimeout(pollTimerRef.current);
+            }
+            pollTimerRef.current = window.setTimeout(() => {
+                void fetchReview();
+            }, 3000);
+        };
+
+        const fetchReview = async () => {
+            try {
+                const response = await getAttemptReview(id);
+                if (!isMounted) {
+                    return;
+                }
+
+                if (isProcessingReview(response)) {
+                    setError(null);
+                    setIsProcessing(true);
+                    schedulePoll();
+                    return;
+                }
+
+                setError(null);
+                setIsProcessing(false);
                 setReviewData(response);
-            })
-            .catch(() => {
+            } catch {
+                if (!isMounted) {
+                    return;
+                }
                 setError("Không thể tải bài review. Vui lòng thử lại.");
-            })
-            .finally(() => {
+            } finally {
+                if (!isMounted) {
+                    return;
+                }
                 setIsLoading(false);
-            });
+            }
+        };
+
+        void fetchReview();
+
+        return () => {
+            isMounted = false;
+            if (pollTimerRef.current !== null) {
+                window.clearTimeout(pollTimerRef.current);
+                pollTimerRef.current = null;
+            }
+        };
     }, [id]);
 
     const allQuestionsArray = useMemo(() => {
@@ -210,8 +252,12 @@ export default function ReviewPage() {
         );
     }
 
-    if (isLoading || !reviewData) {
-    return <BrandedLoadingScreen message="Đang tải kết quả bài thi..." />;
+    if (isLoading || isProcessing || !reviewData) {
+        return (
+            <BrandedLoadingScreen
+                message={isProcessing ? "Đang chấm điểm bài thi... Vui lòng chờ." : "Đang tải kết quả bài thi..."}
+            />
+        );
     }
 
     const { title, userAnswers, user } = reviewData;
@@ -344,4 +390,10 @@ export default function ReviewPage() {
             <Footer />
         </div>
     );
+}
+
+function isProcessingReview(
+    payload: AttemptReviewData | AttemptProcessingData
+): payload is AttemptProcessingData {
+    return (payload as AttemptProcessingData).status === "processing";
 }

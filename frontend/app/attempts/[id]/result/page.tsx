@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
@@ -15,7 +15,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { getAttemptResult } from "@/lib/api/attempts/api";
-import type { AttemptResultData } from "@/lib/api/attempts/types";
+import type { AttemptProcessingData, AttemptResultData } from "@/lib/api/attempts/types";
 import { formatExamType } from "@/lib/api/exams/mapper";
 import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 
@@ -26,30 +26,57 @@ export default function ExamResultPage() {
 
   const [data, setData] = useState<AttemptResultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
 
     let isMounted = true;
 
-    getAttemptResult(id)
-      .then((result) => {
+    const schedulePoll = () => {
+      if (pollTimerRef.current !== null) {
+        window.clearTimeout(pollTimerRef.current);
+      }
+      pollTimerRef.current = window.setTimeout(() => {
+        void fetchResult();
+      }, 3000);
+    };
+
+    const fetchResult = async () => {
+      try {
+        const result = await getAttemptResult(id);
         if (!isMounted) return;
+
+        if (isProcessingResult(result)) {
+          setLoadError(null);
+          setIsProcessing(true);
+          schedulePoll();
+          return;
+        }
+
+        setLoadError(null);
+        setIsProcessing(false);
         setData(result);
-      })
-      .catch(() => {
+      } catch {
         if (!isMounted) return;
         setLoadError("Không thể tải kết quả bài thi. Vui lòng thử lại.");
-      })
-      .finally(() => {
+      } finally {
         if (!isMounted) return;
         setIsLoading(false);
-      });
+      }
+    };
 
+    void fetchResult();
     return () => {
       isMounted = false;
+      if (pollTimerRef.current !== null) {
+        window.clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
     };
+
   }, [id]);
 
   useEffect(() => {
@@ -82,8 +109,12 @@ export default function ExamResultPage() {
     );
   }
 
-  if (isLoading) {
-  return <BrandedLoadingScreen message="Đang tải kết quả bài thi..." />;
+  if (isLoading || isProcessing) {
+    return (
+      <BrandedLoadingScreen
+        message={isProcessing ? "Đang chấm điểm bài thi... Vui lòng chờ." : "Đang tải kết quả bài thi..."}
+      />
+    );
   }
 
   if (loadError || !data) {
@@ -257,4 +288,10 @@ export default function ExamResultPage() {
       <Footer />
     </main>
   );
+}
+
+function isProcessingResult(
+  payload: AttemptResultData | AttemptProcessingData
+): payload is AttemptProcessingData {
+  return (payload as AttemptProcessingData).status === "processing";
 }
