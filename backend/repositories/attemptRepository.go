@@ -592,6 +592,9 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 
 func ListQuestionsByExamID(ctx context.Context, examID string) ([]AttemptQuestionRow, error) {
 	rows := make([]AttemptQuestionRow, 0)
+	if _, err := uuid.Parse(examID); err != nil {
+		return rows, nil
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -607,7 +610,7 @@ func ListQuestionsByExamID(ctx context.Context, examID string) ([]AttemptQuestio
 			q.question_type
 		FROM exam_section s
 		JOIN question q ON q.section_id = s.section_id
-		WHERE s.exam_id = ?
+		WHERE s.exam_id = ?::uuid
 		  AND q.deleted_at IS NULL
 		ORDER BY s.section_id, q.parent_id NULLS FIRST, q.question_id
 	`, examID).Scan(&rows).Error

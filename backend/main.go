@@ -27,6 +27,7 @@ func main() {
 
 	appCtx, stopBackgroundWorkers := context.WithCancel(context.Background())
 	services.StartExpiredAttemptAutoSubmitter(appCtx)
+	workers.StartAttemptAnswerFlushWorker(appCtx)
 	workers.StartSubmitWorker(appCtx)
 
 	// ===== Tạo server =====

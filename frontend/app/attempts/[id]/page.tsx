@@ -52,7 +52,7 @@ interface GroupedQuestion {
 type SaveState = "idle" | "saving" | "saved" | "error";
 type SubmitState = "idle" | "submitting";
 
-const AUTOSAVE_DEBOUNCE_MS = 1200;
+const AUTOSAVE_DEBOUNCE_MS = 5000;
 const AUTOSAVE_RETRY_BASE_MS = 1500;
 const AUTOSAVE_RETRY_MAX_MS = 8000;
 const ATTEMPT_TAB_LOCK_TTL_MS = 5000;
@@ -125,6 +125,7 @@ export default function AttemptPage() {
 
   const answersRef = useRef<Record<string, string>>({});
   const dirtyAnswersRef = useRef<Record<string, string>>({});
+  const savedAnswersRef = useRef<Record<string, string>>({});
   const submitStateRef = useRef<SubmitState>("idle");
   const autosaveTimerRef = useRef<number | null>(null);
   const retryTimerRef = useRef<number | null>(null);
@@ -219,6 +220,10 @@ export default function AttemptPage() {
   useEffect(() => {
     dirtyAnswersRef.current = dirtyAnswers;
   }, [dirtyAnswers]);
+
+  useEffect(() => {
+    savedAnswersRef.current = savedAnswers;
+  }, [savedAnswers]);
 
   useEffect(() => {
     submitStateRef.current = submitState;
@@ -1146,6 +1151,8 @@ export default function AttemptPage() {
 
     clearRetryTimer();
     retryAttemptsRef.current[questionId] = 0;
+    answersRef.current = { ...answersRef.current, [questionId]: value };
+    dirtyAnswersRef.current = { ...dirtyAnswersRef.current, [questionId]: value };
 
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
     setDirtyAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -1178,7 +1185,18 @@ export default function AttemptPage() {
     clearAutosaveTimer();
     clearRetryTimer();
 
-    const didSave = await flushPendingAnswersNow();
+    const submitSnapshot: Record<string, string> = { ...dirtyAnswersRef.current };
+    for (const [questionId, value] of Object.entries(answersRef.current)) {
+      const normalized = value?.trim() ?? "";
+      if (!normalized) {
+        continue;
+      }
+      if ((savedAnswersRef.current[questionId] ?? "") !== normalized) {
+        submitSnapshot[questionId] = normalized;
+      }
+    }
+
+    const didSave = await flushPendingAnswersNow(submitSnapshot);
     if (!didSave) {
       setSubmitState("idle");
       return;
