@@ -1,4 +1,4 @@
-import type { ApiSuccessResponse, ApiErrorResponse } from "./shared/envelope";
+import type { ApiSuccessResponse, ApiErrorResponse, ApiProcessingResponse } from "./shared/envelope";
 import { ApiError } from "./shared/errors";
 import { getToken } from "../auth/token";
 
@@ -15,13 +15,14 @@ interface RequestOptions {
   body?: unknown;
   headers?: Record<string, string>;
   auth?: boolean;
+  allowProcessing?: boolean;
 }
 
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, headers = {}, auth = false } = options;
+  const { method = "GET", body, headers = {}, auth = false, allowProcessing = false } = options;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -65,15 +66,28 @@ export async function apiRequest<T>(
     }
 
     const successData = json as ApiSuccessResponse<T> | null;
-    if (!successData || successData.status !== "success") {
+    if (successData && successData.status === "success") {
+      return successData.data;
+    }
+
+    const processingData = json as ApiProcessingResponse<T> | null;
+    if (processingData && processingData.status === "processing") {
+      if (allowProcessing) {
+        return processingData.data;
+      }
+
       throw new ApiError(
-        "INVALID_RESPONSE",
-        raw && !isJSON ? raw : "Server returned an invalid response",
+        "PROCESSING",
+        "Request is still processing",
         response.status
       );
     }
 
-    return successData.data;
+    throw new ApiError(
+      "INVALID_RESPONSE",
+      raw && !isJSON ? raw : "Server returned an invalid response",
+      response.status
+    );
   } catch (error) {
     if (error instanceof ApiError) throw error;
 

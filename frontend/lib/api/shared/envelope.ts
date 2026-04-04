@@ -3,6 +3,11 @@ export interface ApiSuccessResponse<T> {
   data: T;
 }
 
+export interface ApiProcessingResponse<T> {
+  status: "processing";
+  data: T;
+}
+
 export interface ApiErrorBody {
   code: string;
   message: string;

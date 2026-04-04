@@ -69,6 +69,18 @@ func SendCreated(w http.ResponseWriter, data interface{}) {
     }
 }
 
+// SendAccepted ghi response tiến trình nền (HTTP 202).
+func SendAccepted(w http.ResponseWriter, data interface{}) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusAccepted)
+    if err := json.NewEncoder(w).Encode(SuccessResponse{
+        Status: "processing",
+        Data:   data,
+    }); err != nil {
+        log.Printf("response: encode error: %v", err)
+    }
+}
+
 // SendError ghi response lỗi với HTTP status code tương ứng.
 func SendError(w http.ResponseWriter, statusCode int, code, message string) {
     w.Header().Set("Content-Type", "application/json")
