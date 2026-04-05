@@ -2,7 +2,9 @@ import type { ApiSuccessResponse, ApiErrorResponse } from "./shared/envelope";
 
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.API_INTERNAL_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
