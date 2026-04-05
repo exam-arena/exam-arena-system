@@ -954,19 +954,29 @@ export default function AttemptPage() {
     const pendingAnswers = snapshot ?? dirtyAnswersRef.current;
     const entries = Object.entries(pendingAnswers);
     if (entries.length === 0) return true;
+    const validQuestionIds = new Set(
+      (examData.questions ?? []).map((question) => question.question_id).filter(Boolean)
+    );
+    const filteredEntries = entries.filter(([questionId]) => validQuestionIds.has(questionId));
+    if (filteredEntries.length === 0) {
+      return true;
+    }
 
-    const payload: SaveAttemptAnswerInput[] = entries.map(([questionId, selectedAns]) => ({
+    const payload: SaveAttemptAnswerInput[] = filteredEntries.map(([questionId, selectedAns]) => ({
       question_id: questionId,
       selected_ans: selectedAns,
     }));
-    const questionIds = entries.map(([questionId]) => questionId);
+    const questionIds = filteredEntries.map(([questionId]) => questionId);
 
     setSaveState("saving");
     setSaveError(null);
     markQuestionsSaving(questionIds);
 
     try {
-      await saveAttemptAnswers(examData.attempt_id, payload);
+      for (let i = 0; i < payload.length; i += 20) {
+        const chunk = payload.slice(i, i + 20);
+        await saveAttemptAnswers(examData.attempt_id, chunk);
+      }
       handleSaveSuccess(pendingAnswers);
       return true;
     } catch (error) {
@@ -999,24 +1009,7 @@ export default function AttemptPage() {
       if (submitStateRef.current === "submitting") return;
 
       const snapshot = Object.fromEntries(entries);
-      const payload: SaveAttemptAnswerInput[] = Object.entries(snapshot).map(
-        ([questionId, selectedAns]) => ({
-          question_id: questionId,
-          selected_ans: selectedAns,
-        })
-      );
-      const questionIds = Object.keys(snapshot);
-
-      setSaveState("saving");
-      setSaveError(null);
-      markQuestionsSaving(questionIds);
-
-      try {
-        await saveAttemptAnswers(examData.attempt_id!, payload);
-        handleSaveSuccess(snapshot);
-      } catch (error) {
-        handleSaveFailure(error, snapshot);
-      }
+      await flushPendingAnswersNow(snapshot);
     }, AUTOSAVE_DEBOUNCE_MS);
 
     return () => {
@@ -1026,10 +1019,7 @@ export default function AttemptPage() {
     clearAutosaveTimer,
     dirtyAnswers,
     examData?.attempt_id,
-    handleSaveFailure,
-    handleSaveSuccess,
-    isTabBlocked,
-    markQuestionsSaving,
+    flushPendingAnswersNow,
     mode,
   ]);
 
