@@ -49,6 +49,8 @@ func StartAttempt(w http.ResponseWriter, r *http.Request) {
 			utils.SendError(w, http.StatusConflict, "EXAM_NOT_STARTED", "Chưa tới giờ thi")
 		case errors.Is(err, services.ErrExamEnded):
 			utils.SendError(w, http.StatusConflict, "EXAM_ENDED", "Bài thi đã kết thúc")
+		case errors.Is(err, services.ErrStartAttemptBusy):
+			utils.SendError(w, http.StatusTooManyRequests, "START_ATTEMPT_BUSY", "Too many concurrent start attempt requests")
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
 		default:
@@ -224,6 +226,12 @@ func GetAttemptResult(w http.ResponseWriter, r *http.Request) {
 			utils.SendError(w, http.StatusNotFound, "ATTEMPT_NOT_FOUND", "Attempt not found")
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
+		case errors.Is(err, services.ErrAttemptProcessing):
+			utils.SendAccepted(w, map[string]string{
+				"attempt_id": attemptID,
+				"status":     "processing",
+			})
+			return
 		case errors.Is(err, services.ErrAttemptNotSubmitted):
 			utils.SendError(w, http.StatusConflict, "ATTEMPT_NOT_SUBMITTED", "Attempt is not submitted")
 		default:
@@ -263,6 +271,12 @@ func GetAttemptReview(w http.ResponseWriter, r *http.Request) {
 			utils.SendError(w, http.StatusNotFound, "ATTEMPT_NOT_FOUND", "Attempt not found")
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
+		case errors.Is(err, services.ErrAttemptProcessing):
+			utils.SendAccepted(w, map[string]string{
+				"attempt_id": attemptID,
+				"status":     "processing",
+			})
+			return
 		case errors.Is(err, services.ErrAttemptNotSubmitted):
 			utils.SendError(w, http.StatusConflict, "ATTEMPT_NOT_SUBMITTED", "Attempt is not submitted")
 		default:
