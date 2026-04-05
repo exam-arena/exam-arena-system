@@ -15,6 +15,7 @@ import (
 	"backend/routes"
 	"backend/services"
 	"backend/utils"
+	"backend/workers"
 )
 
 func main() {
@@ -26,6 +27,8 @@ func main() {
 
 	appCtx, stopBackgroundWorkers := context.WithCancel(context.Background())
 	services.StartExpiredAttemptAutoSubmitter(appCtx)
+	workers.StartAttemptAnswerFlushWorker(appCtx)
+	workers.StartSubmitWorker(appCtx)
 
 	// ===== Tạo server =====
 	server := &http.Server{

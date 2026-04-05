@@ -86,6 +86,11 @@ export interface SubmitAttemptData {
   submitted_at: string | null;
 }
 
+export interface AttemptProcessingData {
+  attempt_id: string;
+  status: "processing" | "submitted_queued" | "submitted_done";
+}
+
 export interface AttemptResultData {
   user: {
     username: string;
