@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"backend/middleware"
 	"backend/services"
@@ -60,6 +61,40 @@ func StartAttempt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendCreated(w, result)
+}
+
+func GetAttemptHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
+		return
+	}
+
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		utils.SendError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		return
+	}
+
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	cursor := r.URL.Query().Get("cursor")
+
+	payload, err := services.GetAttemptHistoryPayload(r.Context(), services.GetAttemptHistoryInput{
+		UserID: userID.String(),
+		Cursor: cursor,
+		Limit:  limit,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidAttemptHistoryCursor):
+			utils.SendError(w, http.StatusBadRequest, "BAD_REQUEST", "History cursor is invalid")
+		default:
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
+		}
+		return
+	}
+
+	w.Header().Set("Cache-Control", "private, max-age=5, stale-while-revalidate=30")
+	utils.SendJSONBytes(w, http.StatusOK, payload)
 }
 
 func GetAttempt(w http.ResponseWriter, r *http.Request) {
