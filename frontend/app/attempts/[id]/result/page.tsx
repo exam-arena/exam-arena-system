@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -18,6 +18,7 @@ import { getAttemptResult } from "@/lib/api/attempts/api";
 import type { AttemptProcessingData, AttemptResultData } from "@/lib/api/attempts/types";
 import { formatExamType } from "@/lib/api/exams/mapper";
 import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
+import ReviewBlockedDialog from "@/components/exam/ReviewBlockedDialog";
 
 export default function ExamResultPage() {
   const params = useParams();
@@ -28,6 +29,7 @@ export default function ExamResultPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showReviewPopup, setShowReviewPopup] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -192,6 +194,19 @@ export default function ExamResultPage() {
                   </div>
                   <Link
                     href={`/attempts/${id}/review`}
+                    onClick={(e) => {
+                      const isMockOrOfficial = exam.type === "mock_test" || exam.type === "official";
+                      let isExamEnded = true;
+                      if (exam.startTime) {
+                        const endTime = new Date(exam.startTime).getTime() + exam.duration * 1000;
+                        isExamEnded = Date.now() >= endTime;
+                      }
+
+                      if (isMockOrOfficial && !isExamEnded) {
+                        e.preventDefault();
+                        setShowReviewPopup(true);
+                      }
+                    }}
                     className="rounded-num-30 border border-cornflowerblue-100 bg-white text-cornflowerblue-100 hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-2 px-5 text-[1rem] leading-7 font-normal flex items-center justify-center"
                   >
                     Đáp án tham khảo
@@ -286,6 +301,11 @@ export default function ExamResultPage() {
 
       <Banner />
       <Footer />
+
+      <ReviewBlockedDialog
+        open={showReviewPopup}
+        onOpenChange={setShowReviewPopup}
+      />
     </main>
   );
 }

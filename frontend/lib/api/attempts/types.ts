@@ -101,6 +101,8 @@ export interface AttemptResultData {
   exam: {
     title: string;
     type: string;
+    duration: number;
+    startTime?: string;
   };
   room: {
     id: string;

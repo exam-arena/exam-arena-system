@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type ExamStartDialogMode = "ready" | "not_started" | "ended";
+type ExamStartDialogMode = "not_started" | "ended" | "max_attempts";
 
 interface StartExamDialogProps {
   examId: string | number;
@@ -31,14 +31,14 @@ function resolveDialogMode(
   examType: string,
   startTime: string | undefined,
   durationSeconds: number
-): ExamStartDialogMode {
+): ExamStartDialogMode | null {
   if (!usesExamWindow(examType) || !startTime) {
-    return "ready";
+    return null;
   }
 
   const startAtMs = new Date(startTime).getTime();
   if (Number.isNaN(startAtMs)) {
-    return "ready";
+    return null;
   }
 
   const nowMs = Date.now();
@@ -52,7 +52,7 @@ function resolveDialogMode(
     return "ended";
   }
 
-  return "ready";
+  return null;
 }
 
 export default function StartExamDialog({
@@ -66,20 +66,22 @@ export default function StartExamDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [dialogMode, setDialogMode] = useState<ExamStartDialogMode>("ready");
+  const [dialogMode, setDialogMode] = useState<ExamStartDialogMode | null>(null);
 
   const resolvedMode = useMemo(
     () => resolveDialogMode(examType, startTime, durationSeconds),
     [durationSeconds, examType, startTime]
   );
 
-  const openDialog = () => {
-    setDialogMode(resolvedMode);
-    setOpen(true);
-  };
+  const handleWrapperClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isStarting) return;
 
-  const handleStart = async () => {
-    if (isStarting || dialogMode !== "ready") return;
+    if (resolvedMode !== null) {
+      setDialogMode(resolvedMode);
+      setOpen(true);
+      return;
+    }
 
     setIsStarting(true);
     try {
@@ -92,28 +94,33 @@ export default function StartExamDialog({
         try {
           await document.documentElement.requestFullscreen();
         } catch {
-          // Browser may reject fullscreen; keep the attempt flow alive.
+          // Browser may reject fullscreen
         }
       }
 
-      setOpen(false);
       router.replace(`/attempts/${attempt.attempt_id}`);
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.code === "EXAM_NOT_STARTED") {
           setDialogMode("not_started");
+          setOpen(true);
           return;
         }
 
         if (error.code === "EXAM_ENDED") {
           setDialogMode("ended");
+          setOpen(true);
+          return;
+        }
+
+        if (error.code === "MAX_ATTEMPTS_REACHED") {
+          setDialogMode("max_attempts");
+          setOpen(true);
           return;
         }
       }
-
-      throw error;
-    } finally {
       setIsStarting(false);
+      throw error;
     }
   };
 
@@ -122,18 +129,25 @@ export default function StartExamDialog({
       ? "Chưa tới thời gian thi"
       : dialogMode === "ended"
         ? "Kết thúc thi"
-        : "Thông báo bắt đầu bài thi";
+        : dialogMode === "max_attempts"
+          ? "Đã nộp bài"
+          : "Thông báo bắt đầu bài thi";
 
   const description =
     dialogMode === "not_started"
       ? "Bài thi chưa mở. Vui lòng quay lại khi đến giờ thi."
       : dialogMode === "ended"
         ? "Thời gian làm bài đã kết thúc. Bạn không thể bắt đầu bài thi này nữa."
-        : "Bài thi sẽ bắt đầu ngay sau khi bạn xác nhận.";
+        : dialogMode === "max_attempts"
+          ? "Bài thi này chỉ được phép làm 1 lần. Bạn đã nộp bài trước đó nên không thể làm lại."
+          : "Bài thi sẽ bắt đầu ngay sau khi bạn xác nhận.";
 
   return (
     <>
-      <span className="contents" onClick={openDialog}>
+      <span
+        className={`contents ${isStarting ? "pointer-events-none opacity-70" : ""}`}
+        onClick={handleWrapperClick}
+      >
         {children}
       </span>
 
@@ -147,38 +161,15 @@ export default function StartExamDialog({
 
           <div className="mt-2 flex flex-col items-center justify-center gap-1 text-[1rem] leading-6 text-[#004EDC] opacity-80">
             <span>{description}</span>
-            {dialogMode === "ready" ? (
-              <>
-                <span>Thời gian làm bài: {duration}.</span>
-                <span>Hệ thống sẽ tự động nộp bài khi hết thời gian.</span>
-                <i className="mt-2 font-bold">
-                  Bài thi hiển thị dưới dạng toàn màn hình.
-                </i>
-              </>
-            ) : null}
           </div>
 
-          <div className="mt-4 flex items-center justify-center">
-            {dialogMode === "ready" ? (
-              <button
-                onClick={handleStart}
-                disabled={isStarting}
-                className="rounded-num-30 bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:py-3"
-              >
-                <b className="relative text-[1rem] leading-6">
-                  {isStarting
-                    ? "Đang vào bài thi..."
-                    : "Bắt đầu làm bài thi"}
-                </b>
-              </button>
-            ) : (
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-num-30 bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none sm:px-8 sm:py-3"
-              >
-                <b className="relative text-[1rem] leading-6">Quay lại</b>
-              </button>
-            )}
+          <div className="mt-6 flex items-center justify-center">
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-num-30 bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none sm:px-8 sm:py-3"
+            >
+              <b className="relative text-[1rem] leading-6">Quay lại</b>
+            </button>
           </div>
         </DialogContent>
       </Dialog>

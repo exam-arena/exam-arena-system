@@ -200,3 +200,7 @@ ON exam_attempt(exam_id);
 CREATE INDEX IF NOT EXISTS idx_exam_attempt_exam_user
 ON exam_attempt(exam_id, user_id);
 
+-- 10. Chặn 1 user làm nhiều lần đối với mock_test và official
+CREATE UNIQUE INDEX IF NOT EXISTS uq_exam_attempt_user_exam_mock
+ON exam_attempt(user_id, exam_id)
+WHERE attempt_type IN ('mock_test', 'official');

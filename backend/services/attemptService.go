@@ -32,6 +32,7 @@ var (
 	ErrExamNotStarted       = errors.New("exam not started")
 	ErrExamEnded            = errors.New("exam ended")
 	ErrStartAttemptBusy     = errors.New("start attempt busy")
+	ErrMaxAttemptsReached   = errors.New("max attempts reached")
 	startAttemptGroup       singleflight.Group
 	examPolicyGroup         singleflight.Group
 	saveAnswersGroup        singleflight.Group
@@ -181,8 +182,10 @@ type AttemptResultResponse struct {
 		Role     string `json:"role"`
 	} `json:"user"`
 	Exam struct {
-		Title string `json:"title"`
-		Type  string `json:"type"`
+		Title     string     `json:"title"`
+		Type      string     `json:"type"`
+		Duration  int        `json:"duration"`
+		StartTime *time.Time `json:"startTime,omitempty"`
 	} `json:"exam"`
 	Room struct {
 		ID   string `json:"id"`
@@ -244,6 +247,18 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 
 		if err := validateAttemptStartWindow(time.Now().UTC(), examPolicy); err != nil {
 			return nil, err
+		}
+
+		if examPolicy.Type == "mock_test" || examPolicy.Type == "official" {
+			dbCtx, cancel := context.WithTimeout(ctx, getStartAttemptDBTimeout())
+			hasSubmitted, err := repositories.HasSubmittedAttempt(dbCtx, input.UserID, input.ExamID)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			if hasSubmitted {
+				return nil, ErrMaxAttemptsReached
+			}
 		}
 
 		dbCtx, cancel := context.WithTimeout(ctx, getStartAttemptDBTimeout())
@@ -1536,6 +1551,8 @@ func GetAttemptResult(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		response.User.Role = attempt.Role
 		response.Exam.Title = attempt.ExamTitle
 		response.Exam.Type = attempt.ExamType
+		response.Exam.Duration = attempt.Duration
+		response.Exam.StartTime = attempt.StartTime
 		response.Room.ID = attempt.RoomID
 		response.Room.Name = attempt.RoomName
 		response.Result.Score = formatResultScore(score)

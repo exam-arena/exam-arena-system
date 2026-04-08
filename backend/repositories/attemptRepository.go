@@ -118,6 +118,8 @@ type AttemptResultBaseRow struct {
 	Status    string
 	ExamTitle string
 	ExamType  string
+	Duration  int
+	StartTime *time.Time
 	RoomID    string
 	RoomName  string
 	Username  string
@@ -263,6 +265,29 @@ func GetOrCreateInProgressAttempt(ctx context.Context, userID, examID string) (*
 	}
 
 	return &row, nil
+}
+
+func HasSubmittedAttempt(ctx context.Context, userID, examID string) (bool, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return false, nil
+	}
+	if _, err := uuid.Parse(examID); err != nil {
+		return false, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var count int64
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT count(*)
+		FROM exam_attempt
+		WHERE user_id = ?::uuid
+		  AND exam_id = ?::uuid
+		  AND status <> 'in_progress'
+	`, userID, examID).Scan(&count).Error
+
+	return count > 0, err
 }
 
 func GetAttemptByID(ctx context.Context, attemptID string) (*AttemptRow, error) {
@@ -1001,6 +1026,8 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 			a.status,
 			e.title AS exam_title,
 			e.type AS exam_type,
+			e.duration as duration,
+			e.start_time as start_time,
 			r.room_id,
 			r.name AS room_name,
 			u.username,

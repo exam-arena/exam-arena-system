@@ -51,6 +51,8 @@ func StartAttempt(w http.ResponseWriter, r *http.Request) {
 			utils.SendError(w, http.StatusConflict, "EXAM_ENDED", "Bài thi đã kết thúc")
 		case errors.Is(err, services.ErrStartAttemptBusy):
 			utils.SendError(w, http.StatusTooManyRequests, "START_ATTEMPT_BUSY", "Too many concurrent start attempt requests")
+		case errors.Is(err, services.ErrMaxAttemptsReached):
+			utils.SendError(w, http.StatusForbidden, "MAX_ATTEMPTS_REACHED", "Bạn chỉ được làm bài thi này 1 lần")
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
 		default:
