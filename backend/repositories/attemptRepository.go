@@ -116,6 +116,7 @@ type AttemptResultBaseRow struct {
 	AttemptID string
 	UserID    string
 	Status    string
+	Marks     string
 	ExamTitle string
 	ExamType  string
 	RoomID    string
@@ -999,6 +1000,7 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 			a.attempt_id,
 			a.user_id,
 			a.status,
+			COALESCE(a.marks::text, '0') AS marks,
 			e.title AS exam_title,
 			e.type AS exam_type,
 			r.room_id,
@@ -1025,6 +1027,21 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 	}
 
 	return &row, nil
+}
+
+func UpdateAttemptMarks(ctx context.Context, attemptID string, marks float64) error {
+	if _, err := uuid.Parse(attemptID); err != nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return config.DB.WithContext(ctx).Exec(`
+		UPDATE exam_attempt
+		SET marks = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE attempt_id = ?::uuid
+	`, marks, attemptID).Error
 }
 
 func ListAttemptResultQuestions(ctx context.Context, attemptID string) ([]AttemptResultQuestionRow, error) {

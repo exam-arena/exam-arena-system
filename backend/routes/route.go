@@ -19,6 +19,7 @@ func SetupRoutes() {
 	http.HandleFunc("GET /api/v1/exams/latest", middleware.GetLatestExamsRateLimit(handlers.GetLatestExams))
 	http.HandleFunc("GET /api/v1/exams/{examId}", middleware.GetExamRateLimit(handlers.GetExamByID))
 	http.HandleFunc("POST /api/v1/exams/{examId}/attempts", middleware.RequireAuth(middleware.StartAttemptRateLimit(handlers.StartAttempt)))
+	http.HandleFunc("GET /api/v1/attempts/history", middleware.RequireAuth(middleware.GetAttemptHistoryRateLimit(handlers.GetAttemptHistory)))
 	http.HandleFunc("GET /api/v1/attempts/{attemptId}", middleware.RequireAuth(middleware.GetAttemptRateLimit(handlers.GetAttempt)))
 	http.HandleFunc("GET /api/v1/attempts/{attemptId}/review", middleware.RequireAuth(middleware.ReviewAttemptRateLimit(handlers.GetAttemptReview)))
 	http.HandleFunc("GET /api/v1/attempts/{attemptId}/result", middleware.RequireAuth(middleware.ResultAttemptRateLimit(handlers.GetAttemptResult)))
