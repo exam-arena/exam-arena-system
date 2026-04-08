@@ -111,7 +111,9 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem>Thông tin cá nhân</DropdownMenuItem>
-                <DropdownMenuItem>Lịch sử thi</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/history">Lịch sử thi</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={(event) => {

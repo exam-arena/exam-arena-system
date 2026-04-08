@@ -695,12 +695,17 @@ func submitAttemptSync(ctx context.Context, input SubmitAttemptInput) (*SubmitAt
 				return nil, ErrAttemptNotFound
 			}
 
+			if _, err := calculateAndPersistAttemptMarks(ctx, input.AttemptID); err != nil {
+				return nil, err
+			}
+
 			invalidateAttemptInfoCache(input.AttemptID)
 			invalidateAttemptWriteGuardCache(input.AttemptID)
 			invalidateAttemptDetailCache(input.UserID, input.AttemptID)
 			invalidateAttemptDetailPayloadCache(input.UserID, input.AttemptID)
 			invalidateAttemptReviewCache(input.UserID, input.AttemptID)
 			invalidateAttemptResultCache(input.UserID, input.AttemptID)
+			invalidateAttemptHistoryCachesForUser(ctx, input.UserID)
 
 			return &SubmitAttemptResponse{
 				AttemptID:   submitResult.Summary.AttemptID,
@@ -1112,12 +1117,17 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 	}
 	switch submitResult.Status {
 	case "in_progress", "submitted":
+		if _, err := calculateAndPersistAttemptMarks(ctx, attemptID); err != nil {
+			return err
+		}
+
 		invalidateAttemptInfoCache(attemptID)
 		invalidateAttemptWriteGuardCache(attemptID)
 		invalidateAttemptDetailCache(userID, attemptID)
 		invalidateAttemptDetailPayloadCache(userID, attemptID)
 		invalidateAttemptReviewCache(userID, attemptID)
 		invalidateAttemptResultCache(userID, attemptID)
+		invalidateAttemptHistoryCachesForUser(ctx, userID)
 		clearAttemptSubmitStatus(ctx, attemptID)
 		_ = setAttemptSubmitStatus(ctx, attemptID, submitAttemptStatusDone)
 		return nil
@@ -1175,6 +1185,12 @@ func runExpiredAttemptSweep(parent context.Context) {
 				continue
 			}
 
+			if _, err := calculateAndPersistAttemptMarks(ctxOrBackground(parent), row.AttemptID); err != nil {
+				log.Printf("[WARN] attempt auto-submit worker cannot persist marks for %s: %v", row.AttemptID, err)
+				continue
+			}
+
+			invalidateAttemptHistoryCachesForUser(ctxOrBackground(parent), row.UserID)
 			clearAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID)
 			_ = setAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID, submitAttemptStatusDone)
 		}
@@ -2351,6 +2367,24 @@ func gradeMathAttemptResult(rows []repositories.AttemptResultQuestionRow) (float
 	}
 
 	return score, correct, wrong, skipped
+}
+
+func calculateAndPersistAttemptMarks(ctx context.Context, attemptID string) (float64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	questions, err := repositories.ListAttemptResultQuestions(ctx, attemptID)
+	if err != nil {
+		return 0, err
+	}
+
+	score, _, _, _ := gradeMathAttemptResult(questions)
+	if err := repositories.UpdateAttemptMarks(ctx, attemptID, score); err != nil {
+		return 0, err
+	}
+
+	return score, nil
 }
 
 func normalizeAttemptAnswer(value *string) string {

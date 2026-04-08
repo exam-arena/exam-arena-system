@@ -283,6 +283,12 @@ var getAttemptLimiter = newIPRateLimiter(
 	2*time.Minute,
 )
 
+var getAttemptHistoryLimiter = newIPRateLimiter(
+	getEnvFloat("GET_ATTEMPT_HISTORY_RATE_LIMIT_RPS", 6),
+	int(getEnvFloat("GET_ATTEMPT_HISTORY_RATE_LIMIT_BURST", 18)),
+	2*time.Minute,
+)
+
 var reviewAttemptLimiter = newIPRateLimiter(
 	getEnvFloat("REVIEW_ATTEMPT_RATE_LIMIT_RPS", 2),
 	int(getEnvFloat("REVIEW_ATTEMPT_RATE_LIMIT_BURST", 6)),
@@ -426,6 +432,22 @@ func GetAttemptRateLimit(next http.HandlerFunc) http.HandlerFunc {
 
 		if !getAttemptLimiter.allow(key) {
 			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get attempt requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func GetAttemptHistoryRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !getAttemptHistoryLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get attempt history requests")
 			return
 		}
 
