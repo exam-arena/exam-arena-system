@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -17,15 +17,19 @@ import (
 
 const defaultAttemptHistoryPageLimit = 6
 const maxAttemptHistoryPageLimit = 50
+const attemptHistoryFirstPageCacheTTL = 60 * time.Second
+const attemptHistoryFirstPagePayloadCacheTTL = 60 * time.Second
 const attemptHistoryCacheTTL = 15 * time.Second
 const attemptHistoryPayloadCacheTTL = 15 * time.Second
-const attemptHistoryCacheVersion = "v1"
+const attemptHistoryVersionKeyPrefix = "attempt-history-version:user:"
 
 var attemptHistoryGroup singleflight.Group
 
+var ErrInvalidAttemptHistoryCursor = fmt.Errorf("attempt history cursor is invalid")
+
 type GetAttemptHistoryInput struct {
 	UserID string
-	Page   int
+	Cursor string
 	Limit  int
 }
 
@@ -40,10 +44,14 @@ type AttemptHistoryItemResponse struct {
 
 type AttemptHistoryResponse struct {
 	Items        []AttemptHistoryItemResponse `json:"items"`
-	TotalItems   int                          `json:"totalItems"`
-	CurrentPage  int                          `json:"currentPage"`
-	TotalPages   int                          `json:"totalPages"`
 	ItemsPerPage int                          `json:"itemsPerPage"`
+	NextCursor   *string                      `json:"nextCursor,omitempty"`
+	HasNextPage  bool                         `json:"hasNextPage"`
+}
+
+type attemptHistoryCursor struct {
+	SubmittedAt time.Time
+	AttemptID   string
 }
 
 func GetAttemptHistoryPayload(ctx context.Context, input GetAttemptHistoryInput) ([]byte, error) {
@@ -51,13 +59,14 @@ func GetAttemptHistoryPayload(ctx context.Context, input GetAttemptHistoryInput)
 		ctx = context.Background()
 	}
 
-	page, limit := normalizeAttemptHistoryPagination(input.Page, input.Limit)
-	payloadCacheKey := buildAttemptHistoryPayloadCacheKey(input.UserID, page, limit)
+	limit := normalizeAttemptHistoryLimit(input.Limit)
+	version := getAttemptHistoryCacheVersion(ctx, input.UserID)
+	payloadCacheKey := buildAttemptHistoryPayloadCacheKey(version, input.UserID, input.Cursor, limit)
 	if payload := getCachedAttemptHistoryPayload(ctx, payloadCacheKey); payload != nil {
 		return payload, nil
 	}
 
-	groupKey := buildAttemptHistoryCacheKey(input.UserID, page, limit)
+	groupKey := buildAttemptHistoryCacheKey(version, input.UserID, input.Cursor, limit)
 	result, err, _ := attemptHistoryGroup.Do(groupKey, func() (interface{}, error) {
 		if payload := getCachedAttemptHistoryPayload(ctx, payloadCacheKey); payload != nil {
 			return payload, nil
@@ -77,9 +86,9 @@ func GetAttemptHistoryPayload(ctx context.Context, input GetAttemptHistoryInput)
 
 		response, err := buildAttemptHistoryResponse(ctx, GetAttemptHistoryInput{
 			UserID: input.UserID,
-			Page:   page,
+			Cursor: input.Cursor,
 			Limit:  limit,
-		})
+		}, version)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +101,7 @@ func GetAttemptHistoryPayload(ctx context.Context, input GetAttemptHistoryInput)
 			return nil, err
 		}
 
-		cacheAttemptHistoryPayload(ctx, payloadCacheKey, payload)
+		cacheAttemptHistoryPayload(ctx, payloadCacheKey, payload, input.Cursor == "")
 		return payload, nil
 	})
 	if err != nil {
@@ -102,36 +111,37 @@ func GetAttemptHistoryPayload(ctx context.Context, input GetAttemptHistoryInput)
 	return result.([]byte), nil
 }
 
-func buildAttemptHistoryResponse(ctx context.Context, input GetAttemptHistoryInput) (*AttemptHistoryResponse, error) {
+func buildAttemptHistoryResponse(ctx context.Context, input GetAttemptHistoryInput, version string) (*AttemptHistoryResponse, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	page, limit := normalizeAttemptHistoryPagination(input.Page, input.Limit)
-	cacheKey := buildAttemptHistoryCacheKey(input.UserID, page, limit)
+	limit := normalizeAttemptHistoryLimit(input.Limit)
+	cacheKey := buildAttemptHistoryCacheKey(version, input.UserID, input.Cursor, limit)
 	if cached := getCachedAttemptHistory(ctx, cacheKey); cached != nil {
 		return cached, nil
 	}
 
-	rows, err := repositories.ListAttemptHistoryByUser(ctx, input.UserID, page, limit)
+	decodedCursor, err := decodeAttemptHistoryCursor(input.Cursor)
 	if err != nil {
 		return nil, err
 	}
 
-	totalItems := 0
-	if len(rows) > 0 {
-		totalItems = int(rows[0].TotalCount)
-	} else if page > 1 {
-		totalCount, err := repositories.CountAttemptHistoryByUser(ctx, input.UserID)
-		if err != nil {
-			return nil, err
-		}
-		totalItems = int(totalCount)
+	var submittedAt *time.Time
+	var attemptID string
+	if decodedCursor != nil {
+		submittedAt = &decodedCursor.SubmittedAt
+		attemptID = decodedCursor.AttemptID
 	}
 
-	totalPages := 1
-	if totalItems > 0 {
-		totalPages = int(math.Ceil(float64(totalItems) / float64(limit)))
+	rows, err := repositories.ListAttemptHistoryByUser(ctx, input.UserID, submittedAt, attemptID, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	hasNextPage := len(rows) > limit
+	if hasNextPage {
+		rows = rows[:limit]
 	}
 
 	items := make([]AttemptHistoryItemResponse, 0, len(rows))
@@ -146,22 +156,41 @@ func buildAttemptHistoryResponse(ctx context.Context, input GetAttemptHistoryInp
 		})
 	}
 
-	response := &AttemptHistoryResponse{
-		Items:        items,
-		TotalItems:   totalItems,
-		CurrentPage:  page,
-		TotalPages:   totalPages,
-		ItemsPerPage: limit,
+	var nextCursor *string
+	if hasNextPage && len(rows) > 0 {
+		lastRow := rows[len(rows)-1]
+		if lastRow.SubmittedAt != nil {
+			cursor := encodeAttemptHistoryCursor(*lastRow.SubmittedAt, lastRow.AttemptID)
+			nextCursor = &cursor
+		}
 	}
 
-	cacheAttemptHistory(ctx, cacheKey, response)
+	response := &AttemptHistoryResponse{
+		Items:        items,
+		ItemsPerPage: limit,
+		NextCursor:   nextCursor,
+		HasNextPage:  hasNextPage,
+	}
+
+	cacheAttemptHistory(ctx, cacheKey, response, input.Cursor == "")
 	return response, nil
 }
 
-func normalizeAttemptHistoryPagination(page, limit int) (int, int) {
-	if page <= 0 {
-		page = 1
+func WarmAttemptHistoryFirstPage(ctx context.Context, userID string) {
+	if strings.TrimSpace(userID) == "" {
+		return
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	_, _ = GetAttemptHistoryPayload(ctx, GetAttemptHistoryInput{
+		UserID: userID,
+		Limit:  defaultAttemptHistoryPageLimit,
+	})
+}
+
+func normalizeAttemptHistoryLimit(limit int) int {
 	if limit <= 0 {
 		limit = defaultAttemptHistoryPageLimit
 	}
@@ -169,15 +198,72 @@ func normalizeAttemptHistoryPagination(page, limit int) (int, int) {
 		limit = maxAttemptHistoryPageLimit
 	}
 
-	return page, limit
+	return limit
 }
 
-func buildAttemptHistoryCacheKey(userID string, page, limit int) string {
-	return fmt.Sprintf("attempt-history:%s:user:%s:page:%d:limit:%d", attemptHistoryCacheVersion, userID, page, limit)
+func encodeAttemptHistoryCursor(submittedAt time.Time, attemptID string) string {
+	raw := submittedAt.UTC().Format(time.RFC3339Nano) + "|" + attemptID
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }
 
-func buildAttemptHistoryPayloadCacheKey(userID string, page, limit int) string {
-	return fmt.Sprintf("attempt-history-payload:%s:user:%s:page:%d:limit:%d", attemptHistoryCacheVersion, userID, page, limit)
+func decodeAttemptHistoryCursor(cursor string) (*attemptHistoryCursor, error) {
+	cursor = strings.TrimSpace(cursor)
+	if cursor == "" {
+		return nil, nil
+	}
+
+	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return nil, ErrInvalidAttemptHistoryCursor
+	}
+
+	parts := strings.SplitN(string(decoded), "|", 2)
+	if len(parts) != 2 || strings.TrimSpace(parts[1]) == "" {
+		return nil, ErrInvalidAttemptHistoryCursor
+	}
+
+	submittedAt, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return nil, ErrInvalidAttemptHistoryCursor
+	}
+
+	return &attemptHistoryCursor{
+		SubmittedAt: submittedAt,
+		AttemptID:   parts[1],
+	}, nil
+}
+
+func buildAttemptHistoryCacheKey(version, userID, cursor string, limit int) string {
+	return fmt.Sprintf("attempt-history:%s:user:%s:cursor:%s:limit:%d", version, userID, normalizedAttemptHistoryCursorToken(cursor), limit)
+}
+
+func buildAttemptHistoryPayloadCacheKey(version, userID, cursor string, limit int) string {
+	return fmt.Sprintf("attempt-history-payload:%s:user:%s:cursor:%s:limit:%d", version, userID, normalizedAttemptHistoryCursorToken(cursor), limit)
+}
+
+func normalizedAttemptHistoryCursorToken(cursor string) string {
+	cursor = strings.TrimSpace(cursor)
+	if cursor == "" {
+		return "first"
+	}
+
+	return cursor
+}
+
+func getAttemptHistoryCacheVersion(ctx context.Context, userID string) string {
+	if !config.RedisEnabled || config.RedisClient == nil || strings.TrimSpace(userID) == "" {
+		return "1"
+	}
+
+	redisCtx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
+	defer cancel()
+
+	value, err := config.RedisClient.Get(redisCtx, attemptHistoryVersionKeyPrefix+userID).Result()
+	if err != nil || strings.TrimSpace(value) == "" {
+		return "1"
+	}
+
+	return value
 }
 
 func getCachedAttemptHistory(ctx context.Context, cacheKey string) *AttemptHistoryResponse {
@@ -201,7 +287,7 @@ func getCachedAttemptHistory(ctx context.Context, cacheKey string) *AttemptHisto
 	return &result
 }
 
-func cacheAttemptHistory(ctx context.Context, cacheKey string, result *AttemptHistoryResponse) {
+func cacheAttemptHistory(ctx context.Context, cacheKey string, result *AttemptHistoryResponse, isFirstPage bool) {
 	if !config.RedisEnabled || config.RedisClient == nil || result == nil {
 		return
 	}
@@ -214,7 +300,12 @@ func cacheAttemptHistory(ctx context.Context, cacheKey string, result *AttemptHi
 	ctx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
 	defer cancel()
 
-	_ = config.RedisClient.Set(ctx, cacheKey, payload, attemptHistoryCacheTTL).Err()
+	ttl := attemptHistoryCacheTTL
+	if isFirstPage {
+		ttl = attemptHistoryFirstPageCacheTTL
+	}
+
+	_ = config.RedisClient.Set(ctx, cacheKey, payload, ttl).Err()
 }
 
 func getCachedAttemptHistoryPayload(ctx context.Context, cacheKey string) []byte {
@@ -233,7 +324,7 @@ func getCachedAttemptHistoryPayload(ctx context.Context, cacheKey string) []byte
 	return payload
 }
 
-func cacheAttemptHistoryPayload(ctx context.Context, cacheKey string, payload []byte) {
+func cacheAttemptHistoryPayload(ctx context.Context, cacheKey string, payload []byte, isFirstPage bool) {
 	if !config.RedisEnabled || config.RedisClient == nil || len(payload) == 0 {
 		return
 	}
@@ -241,7 +332,12 @@ func cacheAttemptHistoryPayload(ctx context.Context, cacheKey string, payload []
 	ctx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
 	defer cancel()
 
-	_ = config.RedisClient.Set(ctx, cacheKey, payload, attemptHistoryPayloadCacheTTL).Err()
+	ttl := attemptHistoryPayloadCacheTTL
+	if isFirstPage {
+		ttl = attemptHistoryFirstPagePayloadCacheTTL
+	}
+
+	_ = config.RedisClient.Set(ctx, cacheKey, payload, ttl).Err()
 }
 
 func invalidateAttemptHistoryCachesForUser(ctx context.Context, userID string) {
@@ -252,25 +348,5 @@ func invalidateAttemptHistoryCachesForUser(ctx context.Context, userID string) {
 	redisCtx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
 	defer cancel()
 
-	patterns := []string{
-		fmt.Sprintf("attempt-history:%s:user:%s:*", attemptHistoryCacheVersion, userID),
-		fmt.Sprintf("attempt-history-payload:%s:user:%s:*", attemptHistoryCacheVersion, userID),
-	}
-
-	for _, pattern := range patterns {
-		var cursor uint64
-		for {
-			keys, nextCursor, err := config.RedisClient.Scan(redisCtx, cursor, pattern, 100).Result()
-			if err != nil {
-				break
-			}
-			if len(keys) > 0 {
-				_ = config.RedisClient.Del(redisCtx, keys...).Err()
-			}
-			cursor = nextCursor
-			if cursor == 0 {
-				break
-			}
-		}
-	}
+	_ = config.RedisClient.Incr(redisCtx, attemptHistoryVersionKeyPrefix+userID).Err()
 }

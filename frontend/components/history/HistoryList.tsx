@@ -1,13 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import HistoryItem, { type HistoryAttempt } from "./HistoryItem";
-import CustomPagination from "@/components/shared/CustomPagination";
 import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 import { ApiError } from "@/lib/api/client";
 import { getAttemptHistory } from "@/lib/api/history/api";
 import type { HistoryAttemptsResponse } from "@/lib/api/history/types";
+import { Button } from "@/components/ui/button";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -47,108 +46,136 @@ function mapHistoryItems(items: HistoryAttemptsResponse["items"]): HistoryAttemp
   }));
 }
 
-function HistoryListContent() {
-  const searchParams = useSearchParams();
-  const pageParam = searchParams.get("page");
-  const parsedPage = pageParam ? parseInt(pageParam, 10) : 1;
-  const currentPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+export default function HistoryList() {
+  return (
+    <Suspense fallback={<BrandedLoadingScreen message="Đang tải dữ liệu..." />}>
+      <HistoryListContent />
+    </Suspense>
+  );
+}
 
-  const [history, setHistory] = useState<HistoryAttemptsResponse | null>(null);
+function HistoryListContent() {
+  const [items, setItems] = useState<HistoryAttempt[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadHistory() {
-      setIsFetching(true);
-      if (!history) setIsLoading(true);
+    async function loadInitialHistory() {
+      setIsLoading(true);
       setError(null);
 
       try {
-        const response = await getAttemptHistory(currentPage, ITEMS_PER_PAGE);
+        const response = await getAttemptHistory(null, ITEMS_PER_PAGE);
         if (!cancelled) {
-          setHistory(response);
+          setItems(mapHistoryItems(response.items));
+          setNextCursor(response.nextCursor ?? null);
+          setHasNextPage(response.hasNextPage);
         }
       } catch (err) {
         if (!cancelled) {
           const message =
             err instanceof ApiError
               ? err.message
-              : "Khong the tai lich su thi. Vui long thu lai.";
+              : "Không thể tải lịch sử thi. Vui lòng thử lại.";
           setError(message);
-          setHistory(null);
+          setItems([]);
+          setNextCursor(null);
+          setHasNextPage(false);
         }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
-          setIsFetching(false);
         }
       }
     }
 
-    void loadHistory();
+    void loadInitialHistory();
 
     return () => {
       cancelled = true;
     };
-  }, [currentPage]);
+  }, []);
 
-  const currentData = history ? mapHistoryItems(history.items) : [];
-  const safeCurrentPage = history?.currentPage ?? currentPage;
-  const totalPages = history?.totalPages ?? 1;
+  async function handleLoadMore() {
+    if (!hasNextPage || !nextCursor || isLoadingMore) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setError(null);
+
+    try {
+      const response = await getAttemptHistory(nextCursor, ITEMS_PER_PAGE);
+      setItems((prev) => [...prev, ...mapHistoryItems(response.items)]);
+      setNextCursor(response.nextCursor ?? null);
+      setHasNextPage(response.hasNextPage);
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Không thể tải thêm lịch sử thi. Vui lòng thử lại.";
+      setError(message);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   return (
     <section className="w-full bg-[#f6fbff] py-10 md:py-14">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-[96px]">
         <div className="max-w-[1248px] mx-auto flex flex-col items-center gap-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-[#0050e2]">Lịch sử luyện thi</h2>
-          <div className="h-1 w-16 bg-[#FFD600] mx-auto mt-3 rounded-full"></div>
-        </div>
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-[#0050e2]">Lịch sử luyện thi</h2>
+            <div className="h-1 w-16 bg-[#FFD600] mx-auto mt-3 rounded-full"></div>
+          </div>
 
-        <div className={`w-full flex flex-col gap-4 transition-opacity duration-300 ${isFetching && !isLoading ? "opacity-50 pointer-events-none" : ""}`}>
-          {isLoading && (
-            <div className="py-12">
-              <BrandedLoadingScreen message="Đang tải lịch sử thi..." />
-            </div>
-          )}
+          <div className="w-full flex flex-col gap-4">
+            {isLoading && (
+              <div className="py-12">
+                <BrandedLoadingScreen message="Đang tải lịch sử thi..." />
+              </div>
+            )}
 
-          {!isLoading && error && (
-            <div className="text-center py-12 text-red-600 bg-white/60 rounded-2xl border border-red-100 backdrop-blur-sm">
+            {!isLoading && error && items.length === 0 && (
+              <div className="text-center py-12 text-red-600 bg-white/60 rounded-2xl border border-red-100 backdrop-blur-sm">
+                <p>{error}</p>
+              </div>
+            )}
+
+            {!isLoading && items.map((item) => <HistoryItem key={item.id} item={item} />)}
+
+            {!isLoading && !error && items.length === 0 && (
+              <div className="text-center py-12 text-[#0050e2]/60 bg-white/50 rounded-2xl border border-[#0050e2]/10 backdrop-blur-sm">
+                <p>Chưa có lịch sử làm bài thi nào.</p>
+              </div>
+            )}
+          </div>
+
+          {!isLoading && error && items.length > 0 && (
+            <div className="w-full text-center text-sm text-red-600">
               <p>{error}</p>
             </div>
           )}
 
-          {!isLoading &&
-            !error &&
-            currentData.map((item) => <HistoryItem key={item.id} item={item} />)}
-
-          {!isLoading && !error && currentData.length === 0 && (
-            <div className="text-center py-12 text-[#0050e2]/60 bg-white/50 rounded-2xl border border-[#0050e2]/10 backdrop-blur-sm">
-              <p>Chưa có lịch sử làm bài thi nào.</p>
+          {!isLoading && hasNextPage && (
+            <div className="mt-2">
+              <Button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="bg-[#004EDC] text-white hover:bg-[#004EDC]/90 px-6"
+              >
+                {isLoadingMore ? "Đang tải thêm..." : "Tải thêm"}
+              </Button>
             </div>
           )}
         </div>
-
-        {!isLoading && !error && totalPages > 1 && (
-          <CustomPagination
-            currentPage={safeCurrentPage}
-            totalPages={totalPages}
-            basePath="/history"
-          />
-        )}
-        </div>
       </div>
     </section>
-  );
-}
-
-export default function HistoryList() {
-  return (
-    <Suspense fallback={<BrandedLoadingScreen message="Đang tải dữ liệu..." />}>
-      <HistoryListContent />
-    </Suspense>
   );
 }

@@ -9,8 +9,7 @@ export interface HistoryAttemptItem {
 
 export interface HistoryAttemptsResponse {
   items: HistoryAttemptItem[];
-  totalItems: number;
-  currentPage: number;
-  totalPages: number;
   itemsPerPage: number;
+  nextCursor?: string | null;
+  hasNextPage: boolean;
 }
