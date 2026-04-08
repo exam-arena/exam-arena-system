@@ -75,16 +75,21 @@ func GetAttemptHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	cursor := r.URL.Query().Get("cursor")
 
 	payload, err := services.GetAttemptHistoryPayload(r.Context(), services.GetAttemptHistoryInput{
 		UserID: userID.String(),
-		Page:   page,
+		Cursor: cursor,
 		Limit:  limit,
 	})
 	if err != nil {
-		utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
+		switch {
+		case errors.Is(err, services.ErrInvalidAttemptHistoryCursor):
+			utils.SendError(w, http.StatusBadRequest, "BAD_REQUEST", "History cursor is invalid")
+		default:
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
+		}
 		return
 	}
 

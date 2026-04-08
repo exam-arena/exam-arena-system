@@ -706,6 +706,7 @@ func submitAttemptSync(ctx context.Context, input SubmitAttemptInput) (*SubmitAt
 			invalidateAttemptReviewCache(input.UserID, input.AttemptID)
 			invalidateAttemptResultCache(input.UserID, input.AttemptID)
 			invalidateAttemptHistoryCachesForUser(ctx, input.UserID)
+			WarmAttemptHistoryFirstPage(ctx, input.UserID)
 
 			return &SubmitAttemptResponse{
 				AttemptID:   submitResult.Summary.AttemptID,
@@ -1128,6 +1129,7 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 		invalidateAttemptReviewCache(userID, attemptID)
 		invalidateAttemptResultCache(userID, attemptID)
 		invalidateAttemptHistoryCachesForUser(ctx, userID)
+		WarmAttemptHistoryFirstPage(ctx, userID)
 		clearAttemptSubmitStatus(ctx, attemptID)
 		_ = setAttemptSubmitStatus(ctx, attemptID, submitAttemptStatusDone)
 		return nil
@@ -1191,6 +1193,7 @@ func runExpiredAttemptSweep(parent context.Context) {
 			}
 
 			invalidateAttemptHistoryCachesForUser(ctxOrBackground(parent), row.UserID)
+			WarmAttemptHistoryFirstPage(ctxOrBackground(parent), row.UserID)
 			clearAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID)
 			_ = setAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID, submitAttemptStatusDone)
 		}
