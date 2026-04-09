@@ -58,7 +58,7 @@ export default function ProfileForm({
     <Card className="rounded-[2rem] border border-[#D8E6FF] bg-[#EAF2FF]/70 py-0 shadow-[0_18px_60px_rgba(0,78,220,0.08)] backdrop-blur">
       <CardContent className="px-6 py-6 sm:px-8">
         <div className="grid gap-5 md:grid-cols-2">
-          <ProfileField label="Ho va ten">
+          <ProfileField label="Họ và tên">
             <Input
               value={values.fullname}
               onChange={(event) => onFieldChange("fullname", event.target.value)}
