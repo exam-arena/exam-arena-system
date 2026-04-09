@@ -40,11 +40,12 @@ type LoginResponse struct {
 }
 
 type UserResponse struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Fullname string `json:"fullname"`
-	Email    string `json:"email"`
-	Role     string `json:"role"`
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	Fullname  string `json:"fullname"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url"`
+	Role      string `json:"role"`
 }
 
 var (
@@ -171,12 +172,44 @@ func LoginUser(ctx context.Context, input LoginInput) (*LoginResponse, error) {
 	return &LoginResponse{
 		Token: token,
 		User: UserResponse{
-			UserID:   user.UserID,
-			Username: user.Username,
-			Fullname: user.Fullname,
-			Email:    user.Email,
-			Role:     user.Role,
+			UserID:    user.UserID,
+			Username:  user.Username,
+			Fullname:  user.Fullname,
+			Email:     user.Email,
+			AvatarURL: user.AvatarURL,
+			Role:      user.Role,
 		},
+	}, nil
+}
+
+func GetCurrentUser(ctx context.Context, userID string) (*UserResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	dbCtx, cancel := context.WithTimeout(ctx, getEnvDurationMs("GET_ME_DB_TIMEOUT_MS", defaultLoginDBTimeout))
+	defer cancel()
+
+	user, err := repositories.GetUserSessionByIDWithContext(dbCtx, userID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrUserNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, ErrInternal
+	}
+
+	return &UserResponse{
+		UserID:    user.UserID,
+		Username:  user.Username,
+		Fullname:  user.Fullname,
+		Email:     user.Email,
+		AvatarURL: user.AvatarURL,
+		Role:      user.Role,
 	}, nil
 }
 
