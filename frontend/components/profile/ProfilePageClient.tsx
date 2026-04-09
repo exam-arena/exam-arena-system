@@ -10,6 +10,7 @@ import type {
   ProvinceOption,
   WardOption,
 } from "@/components/profile/types";
+import { signAvatarUploadApi, updateAvatarApi } from "@/lib/api/profile/avatar";
 import { getProfileApi, updateProfileApi } from "@/lib/api/profile/api";
 import type {
   ProfileResponse,
@@ -22,6 +23,8 @@ import {
 } from "@/lib/api/provinces/api";
 import { ApiError } from "@/lib/api/shared/errors";
 import { useAuth } from "@/lib/auth/hooks";
+
+const objectUrlFactory = typeof URL !== "undefined" ? URL : null;
 
 function buildInitialValues(fullname: string, email: string): ProfileFormValues {
   return {
@@ -65,9 +68,8 @@ function buildUpdatePayload(
 ): UpdateProfilePayload {
   const normalizedProvinceCode = normalizeLocationCode(values.provinceCode);
   const normalizedWardCode = normalizeLocationCode(values.wardCode);
-
   const province = provinceOptions.find(
-    (item) => item.code === normalizeLocationCode(values.provinceCode)
+    (item) => item.code === normalizedProvinceCode
   );
   const ward = wardOptions.find((item) => item.code === normalizedWardCode);
 
@@ -93,7 +95,45 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  return "Không thể tải hồ sơ lúc này. Vui lòng thử lại.";
+  return "Không thể tải hồ sơ lúc nay. Vui lòng thử lại.";
+}
+
+async function uploadAvatarToCloudinary(file: File): Promise<{
+  provider: string;
+  key: string;
+  url: string;
+}> {
+  const signature = await signAvatarUploadApi();
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("api_key", signature.api_key);
+  formData.append("timestamp", String(signature.timestamp));
+  formData.append("signature", signature.signature);
+  formData.append("folder", signature.folder);
+  formData.append("public_id", signature.public_id);
+
+  const response = await fetch(signature.upload_url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Avatar upload failed");
+  }
+
+  const payload = (await response.json()) as {
+    public_id?: string;
+    secure_url?: string;
+  };
+  if (!payload.public_id || !payload.secure_url) {
+    throw new Error("Avatar upload failed");
+  }
+
+  return {
+    provider: signature.provider,
+    key: payload.public_id,
+    url: payload.secure_url,
+  };
 }
 
 export default function ProfilePageClient() {
@@ -110,8 +150,19 @@ export default function ProfilePageClient() {
   const [isFetching, setIsFetching] = useState(true);
   const [isLocationsLoading, setIsLocationsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [avatarErrorMessage, setAvatarErrorMessage] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [provinceOptions, setProvinceOptions] = useState<ProvinceOption[]>([]);
   const [wardOptions, setWardOptions] = useState<WardOption[]>([]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl && objectUrlFactory) {
+        objectUrlFactory.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +177,7 @@ export default function ProfilePageClient() {
       } catch {
         if (!cancelled) {
           setErrorMessage(
-            "Không thể tải danh sách tỉnh / thành phố sau khi nhập lúc này."
+            "Không thể tải danh sách tỉnh / thành sau khi nhập lúc này."
           );
         }
       } finally {
@@ -203,11 +254,6 @@ export default function ProfilePageClient() {
               provinceCode: normalizedProvinceCode,
               wardCode: "",
             }));
-          } else if (formValues.provinceCode !== normalizedProvinceCode) {
-            setFormValues((current) => ({
-              ...current,
-              provinceCode: normalizedProvinceCode,
-            }));
           }
         }
       } catch {
@@ -248,8 +294,7 @@ export default function ProfilePageClient() {
 
       return {
         ...current,
-        [field]:
-          field === "wardCode" ? normalizeLocationCode(value) : value,
+        [field]: field === "wardCode" ? normalizeLocationCode(value) : value,
       };
     });
   };
@@ -277,6 +322,52 @@ export default function ProfilePageClient() {
     }
   };
 
+  const handleAvatarSelect = async (file: File) => {
+    setAvatarErrorMessage("");
+
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
+      setAvatarErrorMessage("Ảnh đại diện chỉ hỗ trợ JPG, PNG hoặc WEBP.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarErrorMessage("Ảnh đại diện phải nhỏ hơn hoặc bằng 2MB.");
+      return;
+    }
+
+    const previewUrl = objectUrlFactory?.createObjectURL(file) ?? "";
+    if (avatarPreviewUrl && objectUrlFactory) {
+      objectUrlFactory.revokeObjectURL(avatarPreviewUrl);
+    }
+    setAvatarPreviewUrl(previewUrl);
+    setIsUploadingAvatar(true);
+
+    try {
+      const uploadedAvatar = await uploadAvatarToCloudinary(file);
+      const updatedProfile = await updateAvatarApi({
+        avatar_provider: uploadedAvatar.provider,
+        avatar_key: uploadedAvatar.key,
+        avatar_url: uploadedAvatar.url,
+      });
+      setFormValues(mapProfileToFormValues(updatedProfile));
+      await refreshUser();
+      if (previewUrl && objectUrlFactory) {
+        objectUrlFactory.revokeObjectURL(previewUrl);
+      }
+      setAvatarPreviewUrl("");
+    } catch (error) {
+      setAvatarErrorMessage(getErrorMessage(error));
+      if (previewUrl && objectUrlFactory) {
+        objectUrlFactory.revokeObjectURL(previewUrl);
+      }
+      setAvatarPreviewUrl("");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const currentAvatarUrl = avatarPreviewUrl || formValues.avatarUrl || user.avatar_url;
+
   return (
     <section className="bg-[#F6FBFF] px-4 py-10 sm:px-6 lg:px-24 lg:py-14">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -297,8 +388,11 @@ export default function ProfilePageClient() {
             fullname={formValues.fullname}
             username={user.username}
             userId={user.user_id}
-            avatarUrl={formValues.avatarUrl || user.avatar_url}
+            avatarUrl={currentAvatarUrl}
             isEditing={isEditing}
+            isUploadingAvatar={isUploadingAvatar}
+            avatarError={avatarErrorMessage}
+            onAvatarSelect={handleAvatarSelect}
           />
 
           <ProfileForm

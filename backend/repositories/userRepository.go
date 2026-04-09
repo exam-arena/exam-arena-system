@@ -124,7 +124,7 @@ func GetUserSessionByIDWithContext(ctx context.Context, userID string) (*models.
 	var user models.User
 
 	err := config.DB.WithContext(ctx).
-		Select("user_id", "username", "fullname", "email", "avatar_url", "role").
+		Select("user_id", "username", "fullname", "email", "avatar_provider", "avatar_key", "avatar_url", "role").
 		Where("user_id = ?", userID).
 		First(&user).Error
 	if err != nil {
@@ -176,6 +176,8 @@ func GetUserProfileByIDWithContext(ctx context.Context, userID string) (*models.
 			"username",
 			"fullname",
 			"email",
+			"avatar_provider",
+			"avatar_key",
 			"avatar_url",
 			"gender",
 			"date_of_birth",
@@ -219,6 +221,8 @@ func UpdateUserProfileByIDWithContext(ctx context.Context, userID string, update
 				{Name: "username"},
 				{Name: "fullname"},
 				{Name: "email"},
+				{Name: "avatar_provider"},
+				{Name: "avatar_key"},
 				{Name: "avatar_url"},
 				{Name: "gender"},
 				{Name: "date_of_birth"},

@@ -51,21 +51,23 @@ type UpdateProfileInput struct {
 }
 
 type UserProfileResponse struct {
-	UserID        string `json:"user_id"`
-	Username      string `json:"username"`
-	Fullname      string `json:"fullname"`
-	Email         string `json:"email"`
-	AvatarURL     string `json:"avatar_url"`
-	Gender        string `json:"gender"`
-	DateOfBirth   string `json:"date_of_birth"`
-	Phone         string `json:"phone"`
-	ProvinceCode  string `json:"province_code"`
-	ProvinceName  string `json:"province_name"`
-	WardCode      string `json:"ward_code"`
-	WardName      string `json:"ward_name"`
-	AddressDetail string `json:"address_detail"`
-	Role          string `json:"role"`
-	UpdatedAt     string `json:"updated_at"`
+	UserID         string `json:"user_id"`
+	Username       string `json:"username"`
+	Fullname       string `json:"fullname"`
+	Email          string `json:"email"`
+	AvatarProvider string `json:"avatar_provider"`
+	AvatarKey      string `json:"avatar_key"`
+	AvatarURL      string `json:"avatar_url"`
+	Gender         string `json:"gender"`
+	DateOfBirth    string `json:"date_of_birth"`
+	Phone          string `json:"phone"`
+	ProvinceCode   string `json:"province_code"`
+	ProvinceName   string `json:"province_name"`
+	WardCode       string `json:"ward_code"`
+	WardName       string `json:"ward_name"`
+	AddressDetail  string `json:"address_detail"`
+	Role           string `json:"role"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 func GetProfile(ctx context.Context, input GetProfileInput) (*UserProfileResponse, error) {
@@ -135,17 +137,8 @@ func normalizeProfileInput(input UpdateProfileInput) (*normalizedProfileUpdate, 
 	}
 
 	avatarURL := strings.TrimSpace(input.AvatarURL)
-	if avatarURL != "" {
-		if len(avatarURL) > 2048 {
-			return nil, ErrInvalidAvatarURL
-		}
-		parsed, err := url.ParseRequestURI(avatarURL)
-		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			return nil, ErrInvalidAvatarURL
-		}
-		if parsed.Scheme != "http" && parsed.Scheme != "https" {
-			return nil, ErrInvalidAvatarURL
-		}
+	if err := validateAvatarURL(avatarURL); err != nil {
+		return nil, err
 	}
 
 	gender := strings.TrimSpace(strings.ToLower(input.Gender))
@@ -222,26 +215,47 @@ func normalizeProfileInput(input UpdateProfileInput) (*normalizedProfileUpdate, 
 	return &normalizedProfileUpdate{updates: updates}, nil
 }
 
+func validateAvatarURL(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	if len(raw) > 2048 {
+		return ErrInvalidAvatarURL
+	}
+
+	parsed, err := url.ParseRequestURI(raw)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ErrInvalidAvatarURL
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ErrInvalidAvatarURL
+	}
+
+	return nil
+}
+
 func mapUserProfileResponse(user *models.User) *UserProfileResponse {
 	if user == nil {
 		return nil
 	}
 
 	response := &UserProfileResponse{
-		UserID:        user.UserID,
-		Username:      user.Username,
-		Fullname:      user.Fullname,
-		Email:         user.Email,
-		AvatarURL:     user.AvatarURL,
-		Gender:        user.Gender,
-		Phone:         user.Phone,
-		ProvinceCode:  user.ProvinceCode,
-		ProvinceName:  user.ProvinceName,
-		WardCode:      user.WardCode,
-		WardName:      user.WardName,
-		AddressDetail: user.AddressDetail,
-		Role:          user.Role,
-		UpdatedAt:     user.UpdatedAt.UTC().Format(time.RFC3339),
+		UserID:         user.UserID,
+		Username:       user.Username,
+		Fullname:       user.Fullname,
+		Email:          user.Email,
+		AvatarProvider: user.AvatarProvider,
+		AvatarKey:      user.AvatarKey,
+		AvatarURL:      user.AvatarURL,
+		Gender:         user.Gender,
+		Phone:          user.Phone,
+		ProvinceCode:   user.ProvinceCode,
+		ProvinceName:   user.ProvinceName,
+		WardCode:       user.WardCode,
+		WardName:       user.WardName,
+		AddressDetail:  user.AddressDetail,
+		Role:           user.Role,
+		UpdatedAt:      user.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 
 	if user.DateOfBirth != nil && !user.DateOfBirth.IsZero() {

@@ -3,6 +3,8 @@ export interface ProfileResponse {
   username: string;
   fullname: string;
   email: string;
+  avatar_provider: string;
+  avatar_key: string;
   avatar_url: string;
   gender: string;
   date_of_birth: string;
@@ -27,4 +29,23 @@ export interface UpdateProfilePayload {
   ward_code: string;
   ward_name: string;
   address_detail: string;
+}
+
+export interface AvatarUploadSignatureResponse {
+  cloud_name: string;
+  api_key: string;
+  timestamp: number;
+  folder: string;
+  public_id: string;
+  provider: string;
+  signature: string;
+  upload_url: string;
+  max_file_bytes: number;
+  allowed_formats: string[];
+}
+
+export interface UpdateAvatarPayload {
+  avatar_provider: string;
+  avatar_key: string;
+  avatar_url: string;
 }

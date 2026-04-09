@@ -19,6 +19,8 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     fullname VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
+    avatar_provider VARCHAR(50),
+    avatar_key VARCHAR(255),
     avatar_url TEXT,
     gender VARCHAR(20),
     date_of_birth DATE,

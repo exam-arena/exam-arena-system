@@ -53,6 +53,12 @@ type UpdateProfileRequest struct {
 	AddressDetail string `json:"address_detail"`
 }
 
+type UpdateAvatarRequest struct {
+	AvatarProvider string `json:"avatar_provider"`
+	AvatarKey      string `json:"avatar_key"`
+	AvatarURL      string `json:"avatar_url"`
+}
+
 func GetProfileDetail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
@@ -128,6 +134,75 @@ func UpdateProfileDetail(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, services.ErrProfileDateOfBirthFuture):
 			utils.SendValidationError(w, []utils.ValidationError{
 				{Field: "profile", Message: err.Error()},
+			})
+		case errors.Is(err, services.ErrProfileNotFound):
+			utils.SendError(w, http.StatusNotFound, "PROFILE_NOT_FOUND", "Profile not found")
+		default:
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
+		}
+		return
+	}
+
+	w.Header().Set("Cache-Control", "private, no-store")
+	utils.SendSuccess(w, profile)
+}
+
+func SignAvatarUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
+		return
+	}
+
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		utils.SendError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		return
+	}
+
+	signature, err := services.CreateAvatarUploadSignature(r.Context(), userID.String())
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrAvatarUploadUnavailable):
+			utils.SendError(w, http.StatusServiceUnavailable, "AVATAR_UPLOAD_UNAVAILABLE", "Avatar upload is unavailable")
+		default:
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
+		}
+		return
+	}
+
+	w.Header().Set("Cache-Control", "private, no-store")
+	utils.SendSuccess(w, signature)
+}
+
+func UpdateAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
+		return
+	}
+
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		utils.SendError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		return
+	}
+
+	var req UpdateAvatarRequest
+	if err := decodeProfileRequest(w, r, &req); err != nil {
+		return
+	}
+
+	profile, err := services.UpdateAvatar(
+		r.Context(),
+		userID.String(),
+		req.AvatarProvider,
+		req.AvatarKey,
+		req.AvatarURL,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidAvatarURL):
+			utils.SendValidationError(w, []utils.ValidationError{
+				{Field: "avatar_url", Message: err.Error()},
 			})
 		case errors.Is(err, services.ErrProfileNotFound):
 			utils.SendError(w, http.StatusNotFound, "PROFILE_NOT_FOUND", "Profile not found")

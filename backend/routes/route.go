@@ -15,6 +15,8 @@ func SetupRoutes() {
 	http.HandleFunc("/api/v1/auth/me", middleware.RequireAuth(middleware.GetProfileRateLimit(handlers.Profile)))
 	http.HandleFunc("GET /api/v1/profile", middleware.RequireAuth(middleware.GetProfileRateLimit(handlers.GetProfileDetail)))
 	http.HandleFunc("PUT /api/v1/profile", middleware.RequireAuth(middleware.UpdateProfileRateLimit(handlers.UpdateProfileDetail)))
+	http.HandleFunc("POST /api/v1/profile/avatar/sign", middleware.RequireAuth(middleware.UpdateProfileRateLimit(handlers.SignAvatarUpload)))
+	http.HandleFunc("PUT /api/v1/profile/avatar", middleware.RequireAuth(middleware.UpdateProfileRateLimit(handlers.UpdateAvatar)))
 	http.HandleFunc("GET /api/v1/rooms", middleware.GetRoomsRateLimit(handlers.GetRooms))
 	http.HandleFunc("GET /api/v1/rooms/hot", middleware.GetHotRoomsRateLimit(handlers.GetHotRooms))
 	http.HandleFunc("GET /api/v1/exams", middleware.GetExamsRateLimit(handlers.GetExams))
