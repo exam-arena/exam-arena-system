@@ -11,19 +11,21 @@ import (
 )
 
 type AttemptRow struct {
-	AttemptID string
-	UserID    string
-	ExamID    string
-	Status    string
-	StartedAt time.Time
-	ExamTitle string
-	ExamType  string
-	Duration  int
-	StartTime *time.Time
-	Username  string
-	Fullname  string
-	Email     string
-	Role      string
+	AttemptID  string
+	UserID     string
+	ExamID     string
+	RoomID     string
+	Status     string
+	StartedAt  time.Time
+	CreatedNew bool
+	ExamTitle  string
+	ExamType   string
+	Duration   int
+	StartTime  *time.Time
+	Username   string
+	Fullname   string
+	Email      string
+	Role       string
 }
 
 type AttemptWriteGuardRow struct {
@@ -142,6 +144,7 @@ type AttemptAnswerRow struct {
 
 type ExamAttemptPolicyRow struct {
 	ExamID    string
+	RoomID    string
 	Type      string
 	Duration  int
 	StartTime *time.Time
@@ -170,10 +173,15 @@ func GetExamAttemptPolicyByID(ctx context.Context, examID string) (*ExamAttemptP
 	err := config.DB.WithContext(ctx).Raw(`
 		SELECT
 			e.exam_id,
+			e.room_id,
 			e.type,
 			e.duration,
 			e.start_time
 		FROM exam e
+		JOIN exam_room r
+		  ON r.room_id = e.room_id
+		 AND r.deleted_at IS NULL
+		 AND r.status = 'active'
 		WHERE e.exam_id = ?::uuid
 		  AND e.deleted_at IS NULL
 		LIMIT 1
@@ -233,26 +241,43 @@ func GetOrCreateInProgressAttempt(ctx context.Context, userID, examID string) (*
 				exam_id,
 				status,
 				started_at
+		),
+		inserted_with_room AS (
+			SELECT
+				i.attempt_id,
+				i.user_id,
+				i.exam_id,
+				e.room_id,
+				i.status,
+				i.started_at,
+				TRUE AS created_new
+			FROM inserted i
+			JOIN exam e ON e.exam_id = i.exam_id
 		)
 		SELECT
 			attempt_id,
 			user_id,
 			exam_id,
+			room_id,
 			status,
-			started_at
-		FROM inserted
+			started_at,
+			created_new
+		FROM inserted_with_room
 		UNION ALL
 		SELECT
-			attempt_id,
-			user_id,
-			exam_id,
-			status,
-			started_at
-		FROM exam_attempt
-		WHERE user_id = ?::uuid
-		  AND exam_id = ?::uuid
-		  AND status = 'in_progress'
-		  AND NOT EXISTS (SELECT 1 FROM inserted)
+			ea.attempt_id,
+			ea.user_id,
+			ea.exam_id,
+			e.room_id,
+			ea.status,
+			ea.started_at,
+			FALSE AS created_new
+		FROM exam_attempt ea
+		JOIN exam e ON e.exam_id = ea.exam_id
+		WHERE ea.user_id = ?::uuid
+		  AND ea.exam_id = ?::uuid
+		  AND ea.status = 'in_progress'
+		  AND NOT EXISTS (SELECT 1 FROM inserted_with_room)
 		LIMIT 1
 	`, userID, examID, userID, examID).Scan(&row).Error
 	if err != nil {

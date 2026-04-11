@@ -230,6 +230,13 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 		if err := validateAttemptStartWindow(time.Now().UTC(), examPolicy); err != nil {
 			return nil, err
 		}
+		access, err := GetValidRoomAccess(ctx, input.UserID, examPolicy.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		if access == nil {
+			return nil, ErrAttemptForbidden
+		}
 
 		releaseLock, err := acquireStartAttemptLock(ctx, input.UserID, input.ExamID)
 		if err != nil {
@@ -254,6 +261,13 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 		}
 		if attempt == nil {
 			return nil, ErrExamNotFound
+		}
+		if attempt.CreatedNew && attempt.RoomID != "" {
+			statsCtx, statsCancel := context.WithTimeout(ctxOrBackground(ctx), 300*time.Millisecond)
+			if statsErr := repositories.IncrementRoomAttemptCount(statsCtx, attempt.RoomID); statsErr != nil {
+				log.Printf("[WARN] StartAttempt: failed to increment room activity stats for room %s: %v", attempt.RoomID, statsErr)
+			}
+			statsCancel()
 		}
 
 		return &StartAttemptResponse{

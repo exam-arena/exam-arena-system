@@ -5,20 +5,51 @@ import { Pagination, Autoplay } from "swiper/modules";
 import "swiper/swiper-bundle.css";
 import RoomCard from "@/components/room/RoomCard";
 import { getHotRooms } from "@/lib/api/rooms/api";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth/hooks";
 
 import type { RoomRaw } from "@/lib/api/rooms/types";
 
-export default function HotExam() {
-    const [rooms, setRooms] = useState<RoomRaw[]>([]);
+interface HotRoomProps {
+    initialRooms?: RoomRaw[];
+}
+
+export default function HotExam({ initialRooms = [] }: HotRoomProps) {
+    const { user, isLoading } = useAuth();
+    const [rooms, setRooms] = useState<RoomRaw[]>(initialRooms);
+    const didSettleAuthRef = useRef(false);
+    const lastUserIdRef = useRef<string | null | undefined>(user?.user_id);
 
     useEffect(() => {
+        if (isLoading) {
+            return;
+        }
+
+        if (!didSettleAuthRef.current) {
+            didSettleAuthRef.current = true;
+            lastUserIdRef.current = user?.user_id;
+            return;
+        }
+
+        if (lastUserIdRef.current === user?.user_id) {
+            return;
+        }
+
+        lastUserIdRef.current = user?.user_id;
+        let cancelled = false;
+
         const fetchRooms = async () => {
             const data = await getHotRooms();
-            setRooms(data);
+            if (!cancelled) {
+                setRooms(data);
+            }
         };
-        fetchRooms();
-    }, []);
+        void fetchRooms();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isLoading, user?.user_id]);
 
     return (
         <section className="w-full bg-white py-9 md:py-[36px]">
