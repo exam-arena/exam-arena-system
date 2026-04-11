@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	defaultRoomExamPageLimit = 8
-	maxRoomExamPageLimit     = 50
-	roomExamCacheTTL         = 60 * time.Second
-	roomExamPayloadCacheTTL  = 60 * time.Second
-	roomExamCacheWaitWindow  = 500 * time.Millisecond
-	roomExamCachePollDelay   = 50 * time.Millisecond
+	defaultRoomExamPageLimit       = 8
+	maxRoomExamPageLimit           = 50
+	roomExamCacheTTL               = 60 * time.Second
+	roomExamPayloadCacheTTL        = 60 * time.Second
+	roomExamCacheWaitWindow        = 500 * time.Millisecond
+	roomExamCachePollDelay         = 50 * time.Millisecond
+	roomExamVersionKeyPrefix       = "room-exams-version:user:"
 )
 
 var (
@@ -36,12 +37,13 @@ type GetRoomExamsInput struct {
 }
 
 type ExamRoomListItem struct {
-	ExamID    string     `json:"exam_id"`
-	RoomID    string     `json:"room_id"`
-	Title     string     `json:"title"`
-	Type      string     `json:"type"`
-	Duration  int        `json:"duration"`
-	StartTime *time.Time `json:"start_time,omitempty"`
+	ExamID       string     `json:"exam_id"`
+	RoomID       string     `json:"room_id"`
+	Title        string     `json:"title"`
+	Type         string     `json:"type"`
+	Duration     int        `json:"duration"`
+	StartTime    *time.Time `json:"start_time,omitempty"`
+	HasCompleted bool       `json:"has_completed"`
 }
 
 type RoomExamListResponse struct {
@@ -73,12 +75,13 @@ func GetRoomExamsPayload(ctx context.Context, input GetRoomExamsInput) ([]byte, 
 	}
 
 	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)
-	payloadCacheKey := buildRoomExamPayloadCacheKey(input.RoomID, page, limit)
+	version := getRoomExamCacheVersion(ctx, input.UserID)
+	payloadCacheKey := buildRoomExamPayloadCacheKey(version, input.UserID, input.RoomID, page, limit)
 	if payload := getCachedRoomExamPayload(ctx, payloadCacheKey); payload != nil {
 		return payload, nil
 	}
 
-	cacheKey := buildRoomExamCacheKey(input.RoomID, page, limit)
+	cacheKey := buildRoomExamCacheKey(version, input.UserID, input.RoomID, page, limit)
 
 	result, err, _ := roomExamGroup.Do(cacheKey, func() (interface{}, error) {
 		if payload := getCachedRoomExamPayload(ctx, payloadCacheKey); payload != nil {
@@ -144,7 +147,8 @@ func buildRoomExamResponse(ctx context.Context, input GetRoomExamsInput) (*RoomE
 	}
 
 	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)
-	cacheKey := buildRoomExamCacheKey(input.RoomID, page, limit)
+	version := getRoomExamCacheVersion(ctx, input.UserID)
+	cacheKey := buildRoomExamCacheKey(version, input.UserID, input.RoomID, page, limit)
 
 	if cached := getCachedRoomExams(ctx, cacheKey); cached != nil {
 		return cached, nil
@@ -169,7 +173,7 @@ func buildRoomExamResponse(ctx context.Context, input GetRoomExamsInput) (*RoomE
 			return cached, nil
 		}
 
-		rows, err := repositories.ListExamsByRoomID(ctx, input.RoomID, page, limit)
+		rows, err := repositories.ListExamsByRoomID(ctx, input.UserID, input.RoomID, page, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -192,12 +196,13 @@ func buildRoomExamResponse(ctx context.Context, input GetRoomExamsInput) (*RoomE
 		items := make([]ExamRoomListItem, 0, len(rows))
 		for _, exam := range rows {
 			items = append(items, ExamRoomListItem{
-				ExamID:    exam.ExamID,
-				RoomID:    exam.RoomID,
-				Title:     exam.Title,
-				Type:      exam.Type,
-				Duration:  exam.Duration,
-				StartTime: exam.StartTime,
+				ExamID:       exam.ExamID,
+				RoomID:       exam.RoomID,
+				Title:        exam.Title,
+				Type:         exam.Type,
+				Duration:     exam.Duration,
+				StartTime:    exam.StartTime,
+				HasCompleted: exam.HasCompleted,
 			})
 		}
 
@@ -238,12 +243,12 @@ func normalizeRoomExamPagination(page, limit int) (int, int) {
 	return page, limit
 }
 
-func buildRoomExamCacheKey(roomID string, page, limit int) string {
-	return fmt.Sprintf("room-exams:%s:page:%d:limit:%d", roomID, page, limit)
+func buildRoomExamCacheKey(version, userID, roomID string, page, limit int) string {
+	return fmt.Sprintf("room-exams:%s:%s:%s:page:%d:limit:%d", version, userID, roomID, page, limit)
 }
 
-func buildRoomExamPayloadCacheKey(roomID string, page, limit int) string {
-	return fmt.Sprintf("room-exams-payload:%s:page:%d:limit:%d", roomID, page, limit)
+func buildRoomExamPayloadCacheKey(version, userID, roomID string, page, limit int) string {
+	return fmt.Sprintf("room-exams-payload:%s:%s:%s:page:%d:limit:%d", version, userID, roomID, page, limit)
 }
 
 func acquireRoomExamReadThroughCacheLock(ctx context.Context, cacheKey string) (func(), error) {
@@ -352,4 +357,47 @@ func waitForCachedRoomExamPayload(ctx context.Context, cacheKey string, maxWait 
 	}
 
 	return getCachedRoomExamPayload(ctx, cacheKey)
+}
+
+func getRoomExamCacheVersion(ctx context.Context, userID string) string {
+	if !config.RedisEnabled || config.RedisClient == nil || userID == "" {
+		return "1"
+	}
+
+	redisCtx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
+	defer cancel()
+
+	value, err := config.RedisClient.Get(redisCtx, roomExamVersionKeyPrefix+userID).Result()
+	if err != nil || value == "" {
+		return "1"
+	}
+
+	return value
+}
+
+func invalidateRoomExamCachesForUser(ctx context.Context, userID string) {
+	if !config.RedisEnabled || config.RedisClient == nil || userID == "" {
+		return
+	}
+
+	redisCtx, cancel := context.WithTimeout(ctxOrBackground(ctx), time.Second)
+	defer cancel()
+
+	_ = config.RedisClient.Incr(redisCtx, roomExamVersionKeyPrefix+userID).Err()
+}
+
+func WarmRoomExamFirstPage(ctx context.Context, userID, roomID string) {
+	if userID == "" || roomID == "" {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	_, _ = GetRoomExamsPayload(ctx, GetRoomExamsInput{
+		UserID: userID,
+		RoomID: roomID,
+		Page:   1,
+		Limit:  defaultRoomExamPageLimit,
+	})
 }
