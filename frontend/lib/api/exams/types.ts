@@ -45,6 +45,7 @@ export interface ExamRoomListItemRaw {
   type: string;
   duration: number;
   start_time?: string;
+  has_completed?: boolean;
 }
 
 
