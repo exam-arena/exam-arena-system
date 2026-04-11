@@ -343,6 +343,19 @@ var getRoomExamsLimiter = newIPRateLimiter(
 	2*time.Minute,
 )
 
+var joinRoomLimiter = newIPRateLimiter(
+	getEnvFloat("JOIN_ROOM_RATE_LIMIT_RPS", 3),
+	int(getEnvFloat("JOIN_ROOM_RATE_LIMIT_BURST", 10)),
+	2*time.Minute,
+)
+
+var joinRoomRedisLimiter = newRedisRateLimiter(
+	"join-room",
+	getEnvFloat("JOIN_ROOM_RATE_LIMIT_RPS", 3),
+	int(getEnvFloat("JOIN_ROOM_RATE_LIMIT_BURST", 10)),
+	2*time.Minute,
+)
+
 var getProfileLimiter = newIPRateLimiter(
 	getEnvFloat("GET_PROFILE_RATE_LIMIT_RPS", 10),
 	int(getEnvFloat("GET_PROFILE_RATE_LIMIT_BURST", 30)),
@@ -572,8 +585,39 @@ func GetHotRoomsRateLimit(next http.HandlerFunc) http.HandlerFunc {
 
 func GetRoomExamsRateLimit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !getRoomExamsLimiter.allow(clientIP(r)) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !getRoomExamsLimiter.allow(key) {
 			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get room exams requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func JoinRoomRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if allowed, err := joinRoomRedisLimiter.allow(r.Context(), key); err == nil && config.RedisEnabled && config.RedisClient != nil {
+			if !allowed {
+				utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many join room requests")
+				return
+			}
+
+			next(w, r)
+			return
+		}
+
+		if !joinRoomLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many join room requests")
 			return
 		}
 

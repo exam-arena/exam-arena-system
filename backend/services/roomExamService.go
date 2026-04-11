@@ -29,6 +29,7 @@ var (
 )
 
 type GetRoomExamsInput struct {
+	UserID string
 	RoomID string
 	Page   int
 	Limit  int
@@ -59,6 +60,17 @@ func GetRoomExamsPayload(ctx context.Context, input GetRoomExamsInput) ([]byte, 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if input.UserID == "" {
+		return nil, ErrRoomAccessForbidden
+	}
+
+	access, err := GetValidRoomAccess(ctx, input.UserID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	if access == nil {
+		return nil, ErrRoomAccessForbidden
+	}
 
 	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)
 	payloadCacheKey := buildRoomExamPayloadCacheKey(input.RoomID, page, limit)
@@ -88,6 +100,7 @@ func GetRoomExamsPayload(ctx context.Context, input GetRoomExamsInput) ([]byte, 
 		}
 
 		response, err := buildRoomExamResponse(ctx, GetRoomExamsInput{
+			UserID: input.UserID,
 			RoomID: input.RoomID,
 			Page:   page,
 			Limit:  limit,
@@ -117,6 +130,17 @@ func GetRoomExamsPayload(ctx context.Context, input GetRoomExamsInput) ([]byte, 
 func buildRoomExamResponse(ctx context.Context, input GetRoomExamsInput) (*RoomExamListResponse, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if input.UserID == "" {
+		return nil, ErrRoomAccessForbidden
+	}
+
+	access, err := GetValidRoomAccess(ctx, input.UserID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	if access == nil {
+		return nil, ErrRoomAccessForbidden
 	}
 
 	page, limit := normalizeRoomExamPagination(input.Page, input.Limit)

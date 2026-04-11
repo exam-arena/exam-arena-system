@@ -19,6 +19,8 @@ func SetupRoutes() {
 	http.HandleFunc("PUT /api/v1/profile/avatar", middleware.RequireAuth(middleware.UpdateProfileRateLimit(handlers.UpdateAvatar)))
 	http.HandleFunc("GET /api/v1/rooms", middleware.GetRoomsRateLimit(handlers.GetRooms))
 	http.HandleFunc("GET /api/v1/rooms/hot", middleware.GetHotRoomsRateLimit(handlers.GetHotRooms))
+	http.HandleFunc("GET /api/v1/rooms/{roomId}", middleware.GetRoomsRateLimit(handlers.GetRoomByID))
+	http.HandleFunc("POST /api/v1/rooms/{roomId}/join", middleware.RequireAuth(middleware.JoinRoomRateLimit(handlers.JoinRoom)))
 	http.HandleFunc("GET /api/v1/exams", middleware.GetExamsRateLimit(handlers.GetExams))
 	http.HandleFunc("GET /api/v1/exams/latest", middleware.GetLatestExamsRateLimit(handlers.GetLatestExams))
 	http.HandleFunc("GET /api/v1/exams/{examId}", middleware.GetExamRateLimit(handlers.GetExamByID))
@@ -29,5 +31,5 @@ func SetupRoutes() {
 	http.HandleFunc("GET /api/v1/attempts/{attemptId}/result", middleware.RequireAuth(middleware.ResultAttemptRateLimit(handlers.GetAttemptResult)))
 	http.HandleFunc("PUT /api/v1/attempts/{attemptId}/answers", middleware.RequireAuth(middleware.SaveAttemptAnswersRateLimit(handlers.SaveAttemptAnswers)))
 	http.HandleFunc("POST /api/v1/attempts/{attemptId}/submit", middleware.RequireAuth(middleware.SubmitAttemptRateLimit(handlers.SubmitAttempt)))
-	http.HandleFunc("GET /api/v1/rooms/{roomId}/exams", middleware.GetRoomExamsRateLimit(handlers.GetRoomExams))
+	http.HandleFunc("GET /api/v1/rooms/{roomId}/exams", middleware.RequireAuth(middleware.GetRoomExamsRateLimit(handlers.GetRoomExams)))
 }
