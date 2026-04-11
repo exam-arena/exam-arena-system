@@ -102,6 +102,11 @@ type AttemptSubmissionRow struct {
 	SubmittedAt *time.Time
 }
 
+type SubmittedExamAttemptRow struct {
+	AttemptID   string
+	SubmittedAt *time.Time
+}
+
 type SubmitAttemptResult struct {
 	AttemptExists bool
 	IsOwner       bool
@@ -291,6 +296,39 @@ func GetOrCreateInProgressAttempt(ctx context.Context, userID, examID string) (*
 	return &row, nil
 }
 
+func GetLatestSubmittedAttemptByUserAndExam(ctx context.Context, userID, examID string) (*SubmittedExamAttemptRow, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return nil, nil
+	}
+	if _, err := uuid.Parse(examID); err != nil {
+		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var row SubmittedExamAttemptRow
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT
+			ea.attempt_id,
+			ea.end_at AS submitted_at
+		FROM exam_attempt ea
+		WHERE ea.user_id = ?::uuid
+		  AND ea.exam_id = ?::uuid
+		  AND ea.status = 'submitted'
+		ORDER BY ea.end_at DESC NULLS LAST, ea.started_at DESC, ea.attempt_id DESC
+		LIMIT 1
+	`, userID, examID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	if row.AttemptID == "" {
+		return nil, nil
+	}
+
+	return &row, nil
+}
+
 func GetAttemptByID(ctx context.Context, attemptID string) (*AttemptRow, error) {
 	if _, err := uuid.Parse(attemptID); err != nil {
 		return nil, nil
@@ -305,6 +343,7 @@ func GetAttemptByID(ctx context.Context, attemptID string) (*AttemptRow, error) 
 			a.attempt_id,
 			a.user_id,
 			a.exam_id,
+			e.room_id,
 			a.status,
 			a.started_at,
 			e.title AS exam_title,

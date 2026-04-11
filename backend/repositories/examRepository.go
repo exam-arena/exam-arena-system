@@ -8,13 +8,14 @@ import (
 )
 
 type RoomExamListRow struct {
-	ExamID     string
-	RoomID     string
-	Title      string
-	Type       string
-	Duration   int
-	StartTime  *time.Time
-	TotalCount int64
+	ExamID       string
+	RoomID       string
+	Title        string
+	Type         string
+	Duration     int
+	StartTime    *time.Time
+	HasCompleted bool
+	TotalCount   int64
 }
 
 type RoomExamMetaRow struct {
@@ -41,7 +42,7 @@ func CountExamsByRoomID(ctx context.Context, roomID string) (int64, error) {
 	return total, nil
 }
 
-func ListExamsByRoomID(ctx context.Context, roomID string, page, limit int) ([]RoomExamListRow, error) {
+func ListExamsByRoomID(ctx context.Context, userID, roomID string, page, limit int) ([]RoomExamListRow, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -57,6 +58,16 @@ func ListExamsByRoomID(ctx context.Context, roomID string, page, limit int) ([]R
 			e.type,
 			e.duration,
 			e.start_time,
+			(
+				e.type IN ('mock_test', 'official') AND
+				EXISTS (
+					SELECT 1
+					FROM exam_attempt ea
+					WHERE ea.exam_id = e.exam_id
+					  AND ea.user_id = ?
+					  AND ea.status = 'submitted'
+				)
+			) AS has_completed,
 			COUNT(*) OVER() AS total_count
 		FROM exam e
 		JOIN exam_room r
@@ -67,7 +78,7 @@ func ListExamsByRoomID(ctx context.Context, roomID string, page, limit int) ([]R
 		  AND e.deleted_at IS NULL
 		ORDER BY e.start_time DESC NULLS LAST, e.exam_id DESC
 		LIMIT ? OFFSET ?
-	`, roomID, limit, offset).Scan(&rows).Error
+	`, userID, roomID, limit, offset).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
