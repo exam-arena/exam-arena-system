@@ -5,6 +5,7 @@ services:
       - "3000:3000"
     environment:
       API_INTERNAL_URL: http://backend:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
@@ -16,7 +17,13 @@ services:
   backend:
     build: ./backend
     environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379/0
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_AVATAR_FOLDER: ${CLOUDINARY_AVATAR_FOLDER}
     ports:
       - "8080:8080"
     volumes:

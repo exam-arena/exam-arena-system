@@ -7,6 +7,7 @@ export interface RoomRaw {
   price: number;
   test_quantity: number;
   status: string;
+  has_access: boolean;
 }
 
 
@@ -22,4 +23,4 @@ export interface RoomListItem {
   statusLabel: string;
 }
 
-export interface RoomDetail extends RoomListItem {}
+export type RoomDetail = RoomListItem;

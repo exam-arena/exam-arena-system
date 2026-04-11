@@ -11,7 +11,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type ExamStartDialogMode = "ready" | "not_started" | "ended";
+export type ExamStartDialogMode =
+  | "ready"
+  | "not_started"
+  | "ended"
+  | "completed";
 
 interface StartExamDialogProps {
   examId: string | number;
@@ -22,12 +26,12 @@ interface StartExamDialogProps {
   children: ReactNode;
 }
 
-function usesExamWindow(examType: string): boolean {
+export function usesExamWindow(examType: string): boolean {
   const normalized = examType.trim().toLowerCase();
   return normalized === "mock_test" || normalized === "official";
 }
 
-function resolveDialogMode(
+export function resolveDialogMode(
   examType: string,
   startTime: string | undefined,
   durationSeconds: number
@@ -55,12 +59,39 @@ function resolveDialogMode(
   return "ready";
 }
 
+function getDialogCopy(mode: ExamStartDialogMode) {
+  switch (mode) {
+    case "not_started":
+      return {
+        title: "Chưa tới thời gian thi",
+        description: "Bài thi chưa mở. Vui lòng quay lại khi đến giờ thi.",
+      };
+    case "ended":
+      return {
+        title: "Kết thúc thi",
+        description:
+          "Thời gian làm bài đã kết thúc. Bạn không thể bắt đầu bài thi này nữa.",
+      };
+    case "completed":
+      return {
+        title: "Bạn đã hoàn thành bài thi",
+        description:
+          "Bạn đã nộp bài thi này rồi. Mỗi học sinh chỉ được làm một lần đối với bài thi thử hoặc chính thức.",
+      };
+    default:
+      return {
+        title: "Thông báo bắt đầu bài thi",
+        description: "Bài thi sẽ bắt đầu ngay sau khi bạn xác nhận.",
+      };
+  }
+}
+
 export default function StartExamDialog({
   examId,
   examType,
   startTime,
   durationSeconds,
-  duration = "90 ph\u00fat",
+  duration = "90 phút",
   children,
 }: StartExamDialogProps) {
   const router = useRouter();
@@ -109,6 +140,11 @@ export default function StartExamDialog({
           setDialogMode("ended");
           return;
         }
+
+        if (error.code === "EXAM_ALREADY_COMPLETED") {
+          setDialogMode("completed");
+          return;
+        }
       }
 
       throw error;
@@ -117,19 +153,7 @@ export default function StartExamDialog({
     }
   };
 
-  const title =
-    dialogMode === "not_started"
-      ? "Chưa tới thời gian thi"
-      : dialogMode === "ended"
-        ? "Kết thúc thi"
-        : "Thông báo bắt đầu bài thi";
-
-  const description =
-    dialogMode === "not_started"
-      ? "Bài thi chưa mở. Vui lòng quay lại khi đến giờ thi."
-      : dialogMode === "ended"
-        ? "Thời gian làm bài đã kết thúc. Bạn không thể bắt đầu bài thi này nữa."
-        : "Bài thi sẽ bắt đầu ngay sau khi bạn xác nhận.";
+  const { title, description } = getDialogCopy(dialogMode);
 
   return (
     <>
@@ -166,9 +190,7 @@ export default function StartExamDialog({
                 className="rounded-num-30 bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 sm:px-8 sm:py-3"
               >
                 <b className="relative text-[1rem] leading-6">
-                  {isStarting
-                    ? "Đang vào bài thi..."
-                    : "Bắt đầu làm bài thi"}
+                  {isStarting ? "Đang vào bài thi..." : "Bắt đầu làm bài thi"}
                 </b>
               </button>
             ) : (

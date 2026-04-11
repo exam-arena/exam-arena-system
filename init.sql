@@ -19,6 +19,17 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     fullname VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
+    avatar_provider VARCHAR(50),
+    avatar_key VARCHAR(255),
+    avatar_url TEXT,
+    gender VARCHAR(20),
+    date_of_birth DATE,
+    phone VARCHAR(20),
+    province_code VARCHAR(20),
+    province_name VARCHAR(100),
+    ward_code VARCHAR(20),
+    ward_name VARCHAR(100),
+    address_detail VARCHAR(255),
     role VARCHAR(20) DEFAULT 'student',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -46,6 +57,12 @@ CREATE TABLE user_room_access (
     room_id UUID REFERENCES exam_room(room_id) ON DELETE CASCADE,
     granted_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     expired_at TIMESTAMPTZ,
+    source_type VARCHAR(50) NOT NULL DEFAULT 'system',
+    source_ref_id UUID,
+    granted_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    note VARCHAR(255),
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, room_id)
 );
 
@@ -57,6 +74,12 @@ CREATE TABLE payment (
     type VARCHAR(50),
     status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE room_activity_stats (
+    room_id UUID PRIMARY KEY REFERENCES exam_room(room_id) ON DELETE CASCADE,
+    attempt_count BIGINT NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -139,6 +162,7 @@ CREATE TABLE attempt_detail (
 -- =========================================================================
 CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_exam_room_modtime BEFORE UPDATE ON exam_room FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_user_room_access_modtime BEFORE UPDATE ON user_room_access FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_payment_modtime BEFORE UPDATE ON payment FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_exam_modtime BEFORE UPDATE ON exam FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_question_modtime BEFORE UPDATE ON question FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
@@ -149,7 +173,11 @@ CREATE TRIGGER update_exam_attempt_modtime BEFORE UPDATE ON exam_attempt FOR EAC
 -- =========================================================================
 
 CREATE INDEX idx_user_room_access_user ON user_room_access(user_id);
+CREATE INDEX idx_user_room_access_user_status_expiry ON user_room_access(user_id, status, expired_at);
+CREATE INDEX idx_user_room_access_room_status ON user_room_access(room_id, status);
+CREATE INDEX idx_user_room_access_source ON user_room_access(source_type, source_ref_id);
 CREATE INDEX idx_payment_user ON payment(user_id);
+CREATE INDEX idx_room_activity_stats_attempt_count ON room_activity_stats(attempt_count DESC, updated_at DESC);
 CREATE INDEX idx_exam_room ON exam(room_id);
 CREATE INDEX idx_question_section ON question(section_id);
 CREATE INDEX idx_question_parent ON question(parent_id);
@@ -200,3 +228,60 @@ ON exam_attempt(exam_id);
 CREATE INDEX IF NOT EXISTS idx_exam_attempt_exam_user
 ON exam_attempt(exam_id, user_id);
 
+-- =========================================================================
+-- 7. MIGRATION SAFE-GUARDS FOR EXISTING DATABASES
+-- =========================================================================
+
+ALTER TABLE IF EXISTS user_room_access
+    ADD COLUMN IF NOT EXISTS source_type VARCHAR(50) NOT NULL DEFAULT 'system';
+
+ALTER TABLE IF EXISTS user_room_access
+    ADD COLUMN IF NOT EXISTS source_ref_id UUID;
+
+ALTER TABLE IF EXISTS user_room_access
+    ADD COLUMN IF NOT EXISTS granted_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL;
+
+ALTER TABLE IF EXISTS user_room_access
+    ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';
+
+ALTER TABLE IF EXISTS user_room_access
+    ADD COLUMN IF NOT EXISTS note VARCHAR(255);
+
+ALTER TABLE IF EXISTS user_room_access
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+
+UPDATE user_room_access
+SET
+    source_type = COALESCE(NULLIF(source_type, ''), 'legacy'),
+    status = COALESCE(NULLIF(status, ''), 'active'),
+    updated_at = COALESCE(updated_at, granted_at, CURRENT_TIMESTAMP)
+WHERE
+    source_type IS NULL
+    OR source_type = ''
+    OR status IS NULL
+    OR status = ''
+    OR updated_at IS NULL;
+
+DROP TRIGGER IF EXISTS update_user_room_access_modtime ON user_room_access;
+CREATE TRIGGER update_user_room_access_modtime
+BEFORE UPDATE ON user_room_access
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+CREATE INDEX IF NOT EXISTS idx_user_room_access_user ON user_room_access(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_room_access_user_status_expiry ON user_room_access(user_id, status, expired_at);
+CREATE INDEX IF NOT EXISTS idx_user_room_access_room_status ON user_room_access(room_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_room_access_source ON user_room_access(source_type, source_ref_id);
+CREATE INDEX IF NOT EXISTS idx_room_activity_stats_attempt_count ON room_activity_stats(attempt_count DESC, updated_at DESC);
+
+INSERT INTO room_activity_stats (room_id, attempt_count, updated_at)
+SELECT
+    e.room_id,
+    COUNT(*) AS attempt_count,
+    CURRENT_TIMESTAMP
+FROM exam_attempt ea
+JOIN exam e ON e.exam_id = ea.exam_id
+GROUP BY e.room_id
+ON CONFLICT (room_id)
+DO UPDATE SET
+    attempt_count = EXCLUDED.attempt_count,
+    updated_at = CURRENT_TIMESTAMP;

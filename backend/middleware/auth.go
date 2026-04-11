@@ -33,6 +33,30 @@ func UserID(r *http.Request) (uuid.UUID, bool) {
 	return id, ok
 }
 
+// OptionalUserID extracts the authenticated user id when credentials are present,
+// but never rejects the request when credentials are missing or invalid.
+func OptionalUserID(r *http.Request) (uuid.UUID, bool) {
+	claims, err := claimsFromRequest(r, getJWTSecret())
+	if err != nil {
+		return uuid.Nil, false
+	}
+
+	subject := claims.Subject
+	if subject == "" {
+		subject = claims.UserID
+	}
+	if subject == "" {
+		return uuid.Nil, false
+	}
+
+	userID, err := uuid.Parse(subject)
+	if err != nil {
+		return uuid.Nil, false
+	}
+
+	return userID, true
+}
+
 // AuthClaims returns the authenticated JWT claims set by RequireAuth.
 func AuthClaims(r *http.Request) (*Claims, bool) {
 	claims, ok := r.Context().Value(claimsCtxKey).(*Claims)

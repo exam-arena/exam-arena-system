@@ -11,19 +11,21 @@ import (
 )
 
 type AttemptRow struct {
-	AttemptID string
-	UserID    string
-	ExamID    string
-	Status    string
-	StartedAt time.Time
-	ExamTitle string
-	ExamType  string
-	Duration  int
-	StartTime *time.Time
-	Username  string
-	Fullname  string
-	Email     string
-	Role      string
+	AttemptID  string
+	UserID     string
+	ExamID     string
+	RoomID     string
+	Status     string
+	StartedAt  time.Time
+	CreatedNew bool
+	ExamTitle  string
+	ExamType   string
+	Duration   int
+	StartTime  *time.Time
+	Username   string
+	Fullname   string
+	Email      string
+	Role       string
 }
 
 type AttemptWriteGuardRow struct {
@@ -100,6 +102,11 @@ type AttemptSubmissionRow struct {
 	SubmittedAt *time.Time
 }
 
+type SubmittedExamAttemptRow struct {
+	AttemptID   string
+	SubmittedAt *time.Time
+}
+
 type SubmitAttemptResult struct {
 	AttemptExists bool
 	IsOwner       bool
@@ -116,6 +123,7 @@ type AttemptResultBaseRow struct {
 	AttemptID string
 	UserID    string
 	Status    string
+	Marks     string
 	ExamTitle string
 	ExamType  string
 	RoomID    string
@@ -141,6 +149,7 @@ type AttemptAnswerRow struct {
 
 type ExamAttemptPolicyRow struct {
 	ExamID    string
+	RoomID    string
 	Type      string
 	Duration  int
 	StartTime *time.Time
@@ -169,10 +178,15 @@ func GetExamAttemptPolicyByID(ctx context.Context, examID string) (*ExamAttemptP
 	err := config.DB.WithContext(ctx).Raw(`
 		SELECT
 			e.exam_id,
+			e.room_id,
 			e.type,
 			e.duration,
 			e.start_time
 		FROM exam e
+		JOIN exam_room r
+		  ON r.room_id = e.room_id
+		 AND r.deleted_at IS NULL
+		 AND r.status = 'active'
 		WHERE e.exam_id = ?::uuid
 		  AND e.deleted_at IS NULL
 		LIMIT 1
@@ -232,32 +246,82 @@ func GetOrCreateInProgressAttempt(ctx context.Context, userID, examID string) (*
 				exam_id,
 				status,
 				started_at
+		),
+		inserted_with_room AS (
+			SELECT
+				i.attempt_id,
+				i.user_id,
+				i.exam_id,
+				e.room_id,
+				i.status,
+				i.started_at,
+				TRUE AS created_new
+			FROM inserted i
+			JOIN exam e ON e.exam_id = i.exam_id
 		)
 		SELECT
 			attempt_id,
 			user_id,
 			exam_id,
+			room_id,
 			status,
-			started_at
-		FROM inserted
+			started_at,
+			created_new
+		FROM inserted_with_room
 		UNION ALL
 		SELECT
-			attempt_id,
-			user_id,
-			exam_id,
-			status,
-			started_at
-		FROM exam_attempt
-		WHERE user_id = ?::uuid
-		  AND exam_id = ?::uuid
-		  AND status = 'in_progress'
-		  AND NOT EXISTS (SELECT 1 FROM inserted)
+			ea.attempt_id,
+			ea.user_id,
+			ea.exam_id,
+			e.room_id,
+			ea.status,
+			ea.started_at,
+			FALSE AS created_new
+		FROM exam_attempt ea
+		JOIN exam e ON e.exam_id = ea.exam_id
+		WHERE ea.user_id = ?::uuid
+		  AND ea.exam_id = ?::uuid
+		  AND ea.status = 'in_progress'
+		  AND NOT EXISTS (SELECT 1 FROM inserted_with_room)
 		LIMIT 1
 	`, userID, examID, userID, examID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
 
+	if row.AttemptID == "" {
+		return nil, nil
+	}
+
+	return &row, nil
+}
+
+func GetLatestSubmittedAttemptByUserAndExam(ctx context.Context, userID, examID string) (*SubmittedExamAttemptRow, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return nil, nil
+	}
+	if _, err := uuid.Parse(examID); err != nil {
+		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var row SubmittedExamAttemptRow
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT
+			ea.attempt_id,
+			ea.end_at AS submitted_at
+		FROM exam_attempt ea
+		WHERE ea.user_id = ?::uuid
+		  AND ea.exam_id = ?::uuid
+		  AND ea.status = 'submitted'
+		ORDER BY ea.end_at DESC NULLS LAST, ea.started_at DESC, ea.attempt_id DESC
+		LIMIT 1
+	`, userID, examID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
 	if row.AttemptID == "" {
 		return nil, nil
 	}
@@ -279,6 +343,7 @@ func GetAttemptByID(ctx context.Context, attemptID string) (*AttemptRow, error) 
 			a.attempt_id,
 			a.user_id,
 			a.exam_id,
+			e.room_id,
 			a.status,
 			a.started_at,
 			e.title AS exam_title,
@@ -999,6 +1064,7 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 			a.attempt_id,
 			a.user_id,
 			a.status,
+			COALESCE(a.marks::text, '0') AS marks,
 			e.title AS exam_title,
 			e.type AS exam_type,
 			r.room_id,
@@ -1025,6 +1091,21 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 	}
 
 	return &row, nil
+}
+
+func UpdateAttemptMarks(ctx context.Context, attemptID string, marks float64) error {
+	if _, err := uuid.Parse(attemptID); err != nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return config.DB.WithContext(ctx).Exec(`
+		UPDATE exam_attempt
+		SET marks = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE attempt_id = ?::uuid
+	`, marks, attemptID).Error
 }
 
 func ListAttemptResultQuestions(ctx context.Context, attemptID string) ([]AttemptResultQuestionRow, error) {
