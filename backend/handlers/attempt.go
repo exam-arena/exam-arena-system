@@ -50,6 +50,8 @@ func StartAttempt(w http.ResponseWriter, r *http.Request) {
 			utils.SendError(w, http.StatusConflict, "EXAM_NOT_STARTED", "Chưa tới giờ thi")
 		case errors.Is(err, services.ErrExamEnded):
 			utils.SendError(w, http.StatusConflict, "EXAM_ENDED", "Bài thi đã kết thúc")
+		case errors.Is(err, services.ErrExamAlreadyCompleted):
+			utils.SendError(w, http.StatusConflict, "EXAM_ALREADY_COMPLETED", "Bạn đã hoàn thành bài thi này")
 		case errors.Is(err, services.ErrStartAttemptBusy):
 			utils.SendError(w, http.StatusTooManyRequests, "START_ATTEMPT_BUSY", "Too many concurrent start attempt requests")
 		case errors.Is(err, services.ErrAttemptForbidden):
