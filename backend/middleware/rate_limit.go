@@ -283,6 +283,12 @@ var getAttemptLimiter = newIPRateLimiter(
 	2*time.Minute,
 )
 
+var getAttemptHistoryLimiter = newIPRateLimiter(
+	getEnvFloat("GET_ATTEMPT_HISTORY_RATE_LIMIT_RPS", 6),
+	int(getEnvFloat("GET_ATTEMPT_HISTORY_RATE_LIMIT_BURST", 18)),
+	2*time.Minute,
+)
+
 var reviewAttemptLimiter = newIPRateLimiter(
 	getEnvFloat("REVIEW_ATTEMPT_RATE_LIMIT_RPS", 2),
 	int(getEnvFloat("REVIEW_ATTEMPT_RATE_LIMIT_BURST", 6)),
@@ -334,6 +340,31 @@ var getHotRoomsLimiter = newIPRateLimiter(
 var getRoomExamsLimiter = newIPRateLimiter(
 	getEnvFloat("GET_ROOM_EXAMS_RATE_LIMIT_RPS", 20),
 	int(getEnvFloat("GET_ROOM_EXAMS_RATE_LIMIT_BURST", 80)),
+	2*time.Minute,
+)
+
+var joinRoomLimiter = newIPRateLimiter(
+	getEnvFloat("JOIN_ROOM_RATE_LIMIT_RPS", 3),
+	int(getEnvFloat("JOIN_ROOM_RATE_LIMIT_BURST", 10)),
+	2*time.Minute,
+)
+
+var joinRoomRedisLimiter = newRedisRateLimiter(
+	"join-room",
+	getEnvFloat("JOIN_ROOM_RATE_LIMIT_RPS", 3),
+	int(getEnvFloat("JOIN_ROOM_RATE_LIMIT_BURST", 10)),
+	2*time.Minute,
+)
+
+var getProfileLimiter = newIPRateLimiter(
+	getEnvFloat("GET_PROFILE_RATE_LIMIT_RPS", 10),
+	int(getEnvFloat("GET_PROFILE_RATE_LIMIT_BURST", 30)),
+	2*time.Minute,
+)
+
+var updateProfileLimiter = newIPRateLimiter(
+	getEnvFloat("UPDATE_PROFILE_RATE_LIMIT_RPS", 3),
+	int(getEnvFloat("UPDATE_PROFILE_RATE_LIMIT_BURST", 10)),
 	2*time.Minute,
 )
 
@@ -426,6 +457,22 @@ func GetAttemptRateLimit(next http.HandlerFunc) http.HandlerFunc {
 
 		if !getAttemptLimiter.allow(key) {
 			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get attempt requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func GetAttemptHistoryRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !getAttemptHistoryLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get attempt history requests")
 			return
 		}
 
@@ -538,8 +585,71 @@ func GetHotRoomsRateLimit(next http.HandlerFunc) http.HandlerFunc {
 
 func GetRoomExamsRateLimit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !getRoomExamsLimiter.allow(clientIP(r)) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !getRoomExamsLimiter.allow(key) {
 			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get room exams requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func JoinRoomRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if allowed, err := joinRoomRedisLimiter.allow(r.Context(), key); err == nil && config.RedisEnabled && config.RedisClient != nil {
+			if !allowed {
+				utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many join room requests")
+				return
+			}
+
+			next(w, r)
+			return
+		}
+
+		if !joinRoomLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many join room requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func GetProfileRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !getProfileLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get profile requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func UpdateProfileRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !updateProfileLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many update profile requests")
 			return
 		}
 

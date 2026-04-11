@@ -31,6 +31,7 @@ var (
 	ErrInvalidAnswerPayload = errors.New("answers payload is invalid")
 	ErrExamNotStarted       = errors.New("exam not started")
 	ErrExamEnded            = errors.New("exam ended")
+	ErrExamAlreadyCompleted = errors.New("exam already completed")
 	ErrStartAttemptBusy     = errors.New("start attempt busy")
 	startAttemptGroup       singleflight.Group
 	examPolicyGroup         singleflight.Group
@@ -230,6 +231,22 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 		if err := validateAttemptStartWindow(time.Now().UTC(), examPolicy); err != nil {
 			return nil, err
 		}
+		access, err := GetValidRoomAccess(ctx, input.UserID, examPolicy.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		if access == nil {
+			return nil, ErrAttemptForbidden
+		}
+		if usesSingleAttemptExamPolicy(examPolicy.Type) {
+			completedAttempt, err := repositories.GetLatestSubmittedAttemptByUserAndExam(ctx, input.UserID, input.ExamID)
+			if err != nil {
+				return nil, err
+			}
+			if completedAttempt != nil {
+				return nil, ErrExamAlreadyCompleted
+			}
+		}
 
 		releaseLock, err := acquireStartAttemptLock(ctx, input.UserID, input.ExamID)
 		if err != nil {
@@ -245,6 +262,15 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 		if err := validateAttemptStartWindow(time.Now().UTC(), examPolicy); err != nil {
 			return nil, err
 		}
+		if usesSingleAttemptExamPolicy(examPolicy.Type) {
+			completedAttempt, err := repositories.GetLatestSubmittedAttemptByUserAndExam(ctx, input.UserID, input.ExamID)
+			if err != nil {
+				return nil, err
+			}
+			if completedAttempt != nil {
+				return nil, ErrExamAlreadyCompleted
+			}
+		}
 
 		dbCtx, cancel := context.WithTimeout(ctx, getStartAttemptDBTimeout())
 		attempt, err := repositories.GetOrCreateInProgressAttempt(dbCtx, input.UserID, input.ExamID)
@@ -254,6 +280,13 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 		}
 		if attempt == nil {
 			return nil, ErrExamNotFound
+		}
+		if attempt.CreatedNew && attempt.RoomID != "" {
+			statsCtx, statsCancel := context.WithTimeout(ctxOrBackground(ctx), 300*time.Millisecond)
+			if statsErr := repositories.IncrementRoomAttemptCount(statsCtx, attempt.RoomID); statsErr != nil {
+				log.Printf("[WARN] StartAttempt: failed to increment room activity stats for room %s: %v", attempt.RoomID, statsErr)
+			}
+			statsCancel()
 		}
 
 		return &StartAttemptResponse{
@@ -268,6 +301,15 @@ func StartAttempt(ctx context.Context, input StartAttemptInput) (*StartAttemptRe
 	}
 
 	return result.(*StartAttemptResponse), nil
+}
+
+func usesSingleAttemptExamPolicy(examType string) bool {
+	switch strings.ToLower(strings.TrimSpace(examType)) {
+	case "mock_test", "official":
+		return true
+	default:
+		return false
+	}
 }
 
 func acquireStartAttemptLock(ctx context.Context, userID, examID string) (func(), error) {
@@ -695,12 +737,20 @@ func submitAttemptSync(ctx context.Context, input SubmitAttemptInput) (*SubmitAt
 				return nil, ErrAttemptNotFound
 			}
 
+			if _, err := calculateAndPersistAttemptMarks(ctx, input.AttemptID); err != nil {
+				return nil, err
+			}
+
 			invalidateAttemptInfoCache(input.AttemptID)
 			invalidateAttemptWriteGuardCache(input.AttemptID)
 			invalidateAttemptDetailCache(input.UserID, input.AttemptID)
 			invalidateAttemptDetailPayloadCache(input.UserID, input.AttemptID)
 			invalidateAttemptReviewCache(input.UserID, input.AttemptID)
 			invalidateAttemptResultCache(input.UserID, input.AttemptID)
+			invalidateAttemptHistoryCachesForUser(ctx, input.UserID)
+			invalidateRoomExamCachesForUser(ctx, input.UserID)
+			WarmAttemptHistoryFirstPage(ctx, input.UserID)
+			warmRoomExamCacheAfterSubmit(ctx, input.UserID, input.AttemptID)
 
 			return &SubmitAttemptResponse{
 				AttemptID:   submitResult.Summary.AttemptID,
@@ -1112,12 +1162,20 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 	}
 	switch submitResult.Status {
 	case "in_progress", "submitted":
+		if _, err := calculateAndPersistAttemptMarks(ctx, attemptID); err != nil {
+			return err
+		}
+
 		invalidateAttemptInfoCache(attemptID)
 		invalidateAttemptWriteGuardCache(attemptID)
 		invalidateAttemptDetailCache(userID, attemptID)
 		invalidateAttemptDetailPayloadCache(userID, attemptID)
 		invalidateAttemptReviewCache(userID, attemptID)
 		invalidateAttemptResultCache(userID, attemptID)
+		invalidateAttemptHistoryCachesForUser(ctx, userID)
+		invalidateRoomExamCachesForUser(ctx, userID)
+		WarmAttemptHistoryFirstPage(ctx, userID)
+		warmRoomExamCacheAfterSubmit(ctx, userID, attemptID)
 		clearAttemptSubmitStatus(ctx, attemptID)
 		_ = setAttemptSubmitStatus(ctx, attemptID, submitAttemptStatusDone)
 		return nil
@@ -1175,6 +1233,14 @@ func runExpiredAttemptSweep(parent context.Context) {
 				continue
 			}
 
+			if _, err := calculateAndPersistAttemptMarks(ctxOrBackground(parent), row.AttemptID); err != nil {
+				log.Printf("[WARN] attempt auto-submit worker cannot persist marks for %s: %v", row.AttemptID, err)
+				continue
+			}
+
+			invalidateAttemptHistoryCachesForUser(ctxOrBackground(parent), row.UserID)
+			invalidateRoomExamCachesForUser(ctxOrBackground(parent), row.UserID)
+			WarmAttemptHistoryFirstPage(ctxOrBackground(parent), row.UserID)
 			clearAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID)
 			_ = setAttemptSubmitStatus(ctxOrBackground(parent), row.AttemptID, submitAttemptStatusDone)
 		}
@@ -2353,6 +2419,24 @@ func gradeMathAttemptResult(rows []repositories.AttemptResultQuestionRow) (float
 	return score, correct, wrong, skipped
 }
 
+func calculateAndPersistAttemptMarks(ctx context.Context, attemptID string) (float64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	questions, err := repositories.ListAttemptResultQuestions(ctx, attemptID)
+	if err != nil {
+		return 0, err
+	}
+
+	score, _, _, _ := gradeMathAttemptResult(questions)
+	if err := repositories.UpdateAttemptMarks(ctx, attemptID, score); err != nil {
+		return 0, err
+	}
+
+	return score, nil
+}
+
 func normalizeAttemptAnswer(value *string) string {
 	if value == nil {
 		return ""
@@ -2465,4 +2549,29 @@ func getCachedAttemptQuestions(ctx context.Context, examID string) ([]AttemptQue
 	}
 
 	return result.([]AttemptQuestionResponse), nil
+}
+
+func warmRoomExamCacheAfterSubmit(ctx context.Context, userID, attemptID string) {
+	if userID == "" || attemptID == "" {
+		return
+	}
+
+	attempt, err := getCachedAttemptInfo(ctx, attemptID)
+	if err != nil || attempt == nil {
+		return
+	}
+
+	roomID := attempt.RoomID
+	if roomID == "" && attempt.ExamID != "" {
+		policy, policyErr := getCachedExamAttemptPolicy(ctx, attempt.ExamID)
+		if policyErr == nil && policy != nil {
+			roomID = policy.RoomID
+		}
+	}
+
+	if roomID == "" {
+		return
+	}
+
+	WarmRoomExamFirstPage(ctx, userID, roomID)
 }

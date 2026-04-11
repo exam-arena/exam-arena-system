@@ -19,6 +19,7 @@ export interface AuthContextValue {
   login: (identifier: string, password: string) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<UserData | null>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,14 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    getMeApi()
-      .then((userData) => {
+    const loadUser = async () => {
+      try {
+        const userData = await getMeApi();
         if (!cancelled) setUser(userData);
-      })
-      .catch(() => {})
-      .finally(() => {
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
         if (!cancelled) setIsLoading(false);
-      });
+      }
+    };
+
+    void loadUser();
 
     return () => {
       cancelled = true;
@@ -63,9 +68,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const userData = await getMeApi();
+      setUser(userData);
+      return userData;
+    } catch {
+      setUser(null);
+      return null;
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, login, register, logout }),
-    [user, isLoading, login, register, logout]
+    () => ({ user, isLoading, login, register, logout, refreshUser }),
+    [user, isLoading, login, register, logout, refreshUser]
   );
 
   return (

@@ -19,5 +19,8 @@ export interface UserData {
   username: string;
   fullname: string;
   email: string;
+  avatar_provider: string;
+  avatar_key: string;
+  avatar_url: string;
   role: string;
 }

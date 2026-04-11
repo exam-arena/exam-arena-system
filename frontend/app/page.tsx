@@ -6,14 +6,17 @@ import NewExam from "@/components/sections/NewExam";
 import Footer from "@/components/layout/Footer";
 import CTA from "@/components/sections/CTA";
 import Docs from "@/components/sections/Docs";
+import { getHotRooms } from "@/lib/api/rooms/api";
 
-export default function Home() {
+export default async function Home() {
+    const initialHotRooms = await getHotRooms().catch(() => []);
+
     return (
         <>
             <Header />
             <Hero />
             <Feature />
-            <HotRoom />
+            <HotRoom initialRooms={initialHotRooms} />
             <NewExam />
             <CTA />
             <Docs />
