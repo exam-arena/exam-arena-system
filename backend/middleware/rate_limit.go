@@ -343,6 +343,18 @@ var getRoomExamsLimiter = newIPRateLimiter(
 	2*time.Minute,
 )
 
+var getProfileLimiter = newIPRateLimiter(
+	getEnvFloat("GET_PROFILE_RATE_LIMIT_RPS", 10),
+	int(getEnvFloat("GET_PROFILE_RATE_LIMIT_BURST", 30)),
+	2*time.Minute,
+)
+
+var updateProfileLimiter = newIPRateLimiter(
+	getEnvFloat("UPDATE_PROFILE_RATE_LIMIT_RPS", 3),
+	int(getEnvFloat("UPDATE_PROFILE_RATE_LIMIT_BURST", 10)),
+	2*time.Minute,
+)
+
 func LoginRateLimit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := clientIP(r)
@@ -562,6 +574,38 @@ func GetRoomExamsRateLimit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !getRoomExamsLimiter.allow(clientIP(r)) {
 			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get room exams requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func GetProfileRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !getProfileLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many get profile requests")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func UpdateProfileRateLimit(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := clientIP(r)
+		if userID, ok := UserID(r); ok {
+			key = "user:" + userID.String()
+		}
+
+		if !updateProfileLimiter.allow(key) {
+			utils.SendError(w, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Too many update profile requests")
 			return
 		}
 
