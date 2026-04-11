@@ -59,6 +59,10 @@ func ListExamsByRoomID(ctx context.Context, roomID string, page, limit int) ([]R
 			e.start_time,
 			COUNT(*) OVER() AS total_count
 		FROM exam e
+		JOIN exam_room r
+		  ON r.room_id = e.room_id
+		 AND r.deleted_at IS NULL
+		 AND r.status = 'active'
 		WHERE e.room_id = ?
 		  AND e.deleted_at IS NULL
 		ORDER BY e.start_time DESC NULLS LAST, e.exam_id DESC
@@ -84,6 +88,7 @@ func GetRoomExamMeta(ctx context.Context, roomID string) (*RoomExamMetaRow, erro
 			FROM exam_room r
 			WHERE r.room_id = ?
 			  AND r.deleted_at IS NULL
+			  AND r.status = 'active'
 		)
 		SELECT
 			EXISTS(SELECT 1 FROM room_scope) AS room_exists,

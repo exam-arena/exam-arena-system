@@ -1,4 +1,12 @@
-import type { AttemptRaw, AttemptUser, AttemptResultData, AttemptReviewData, AttemptData } from "./types";
+import type {
+  AttemptData,
+  AttemptQuestion,
+  AttemptResultData,
+  AttemptReviewData,
+  AttemptRaw,
+  AttemptUser,
+} from "./types";
+import type { SectionRaw } from "../exams/types";
 
 interface RawUser {
   username: string;
@@ -12,7 +20,7 @@ interface RawExam {
   type: string;
   duration: number;
   room_id: string;
-  sections: any[];
+  sections: SectionRaw[];
 }
 
 interface RawRoom {
@@ -34,8 +42,8 @@ export function mapAttemptData(
   user: RawUser
 ): AttemptData {
   const questions = exam.sections.reduce(
-    (acc: any[], sec: any) => acc.concat(sec.questions),
-    []
+    (acc: AttemptQuestion[], sec) => acc.concat(sec.questions),
+    [] as AttemptQuestion[]
   );
 
   return {
@@ -96,8 +104,8 @@ export function mapAttemptReview(
   fallbackAnswers: Record<string, string>
 ): AttemptReviewData {
   const questions = exam.sections.reduce(
-    (acc: any[], sec: any) => acc.concat(sec.questions),
-    []
+    (acc: AttemptQuestion[], sec) => acc.concat(sec.questions),
+    [] as AttemptQuestion[]
   );
 
   let userAnswers: Record<string, string> = {};

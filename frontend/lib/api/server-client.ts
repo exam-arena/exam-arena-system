@@ -1,4 +1,5 @@
 import type { ApiSuccessResponse, ApiErrorResponse } from "./shared/envelope";
+import { ApiError } from "./shared/errors";
 
 
 const API_BASE_URL =
@@ -15,6 +16,25 @@ interface ServerRequestOptions {
   token?: string;
 }
 
+async function getServerCookieHeader(): Promise<string | null> {
+  if (typeof window !== "undefined") {
+    return null;
+  }
+
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const serialized = cookieStore
+      .getAll()
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .join("; ");
+
+    return serialized || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function serverApiRequest<T>(
   endpoint: string,
   options: ServerRequestOptions = {}
@@ -28,6 +48,11 @@ export async function serverApiRequest<T>(
     "Content-Type": "application/json",
     ...headers,
   };
+
+  const cookieHeader = await getServerCookieHeader();
+  if (cookieHeader && !requestHeaders.Cookie) {
+    requestHeaders.Cookie = cookieHeader;
+  }
 
   if (token) {
     requestHeaders["Authorization"] = `Bearer ${token}`;
@@ -50,32 +75,42 @@ export async function serverApiRequest<T>(
 
     if (!response.ok) {
       const errorData = json as ApiErrorResponse | null;
-      throw new Error(
+      throw new ApiError(
+        errorData?.error?.code || "UNKNOWN_ERROR",
         errorData?.error?.message ||
           raw ||
-          `Request failed with status ${response.status}`
+          `Request failed with status ${response.status}`,
+        response.status,
+        errorData?.error?.details
       );
     }
 
     const successData = json as ApiSuccessResponse<T> | null;
     if (!successData || successData.status !== "success") {
-      throw new Error(
+      throw new ApiError(
+        "INVALID_RESPONSE",
         raw && !isJSON ? raw : "Server returned an invalid response"
+        ,
+        response.status
       );
     }
 
     return successData.data;
   } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
     if (error instanceof SyntaxError) {
-      throw new Error("Server returned an invalid response");
+      throw new ApiError("INVALID_RESPONSE", "Server returned an invalid response", 0);
     }
 
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("Request timed out");
+      throw new ApiError("TIMEOUT", "Request timed out", 408);
     }
 
     if (error instanceof TypeError) {
-      throw new Error("Unable to connect to server");
+      throw new ApiError("NETWORK_ERROR", "Unable to connect to server", 0);
     }
 
     throw error;

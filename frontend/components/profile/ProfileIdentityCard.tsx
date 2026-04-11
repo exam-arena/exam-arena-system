@@ -30,7 +30,6 @@ function getInitials(fullname: string, username: string) {
 export default function ProfileIdentityCard({
   fullname,
   username,
-  userId,
   avatarUrl,
   isUploadingAvatar,
   avatarError,
