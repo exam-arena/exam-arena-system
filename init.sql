@@ -1,6 +1,9 @@
 -- =========================================================================
--- 0. HÀM HỖ TRỢ (TRIGGER FUNCTION TỰ ĐỘNG CẬP NHẬT updated_at)
+-- 0. PostgreSQL / Neon bootstrap
 -- =========================================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -10,7 +13,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =========================================================================
--- 1. BẢNG MASTER (DỮ LIỆU CỐT LÕI)
+-- 1. Master data
 -- =========================================================================
 
 CREATE TABLE users (
@@ -33,7 +36,7 @@ CREATE TABLE users (
     role VARCHAR(20) DEFAULT 'student',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ DEFAULT NULL -- Phục vụ Soft Delete
+    deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 
 CREATE TABLE exam_room (
@@ -49,7 +52,7 @@ CREATE TABLE exam_room (
 );
 
 -- =========================================================================
--- 2. BẢNG QUẢN LÝ QUYỀN VÀ GIAO DỊCH
+-- 2. Access and payments
 -- =========================================================================
 
 CREATE TABLE user_room_access (
@@ -84,7 +87,7 @@ CREATE TABLE room_activity_stats (
 );
 
 -- =========================================================================
--- 3. BẢNG CẤU TRÚC ĐỀ THI
+-- 3. Exam structure
 -- =========================================================================
 
 CREATE TABLE exam (
@@ -93,7 +96,7 @@ CREATE TABLE exam (
     title VARCHAR(200) NOT NULL,
     type VARCHAR(50),
     capacity INT,
-    duration INT NOT NULL, 
+    duration INT NOT NULL,
     start_time TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -104,18 +107,17 @@ CREATE TABLE exam_section (
     section_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     exam_id UUID NOT NULL REFERENCES exam(exam_id) ON DELETE CASCADE,
     title VARCHAR(150) NOT NULL,
-    duration INT 
+    duration INT
 );
 
 CREATE TABLE question (
     question_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     section_id UUID NOT NULL REFERENCES exam_section(section_id) ON DELETE CASCADE,
-    parent_id UUID REFERENCES question(question_id) ON DELETE CASCADE, 
+    parent_id UUID REFERENCES question(question_id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    image_url VARCHAR(255), -- Đã bổ sung theo ERD
-    options JSONB, 
+    image_url VARCHAR(255),
+    options JSONB,
     correct_answer TEXT,
-    explanation TEXT,
     point DECIMAL(5, 2) DEFAULT 0.0,
     type VARCHAR(50),
     question_type VARCHAR(50),
@@ -124,14 +126,39 @@ CREATE TABLE question (
     deleted_at TIMESTAMPTZ DEFAULT NULL
 );
 
+-- Explanation is separated from question because a solution can be composed
+-- from multiple ordered text/image blocks. For Part II, each a/b/c/d item is a
+-- child question whose correct_answer remains True/False; attach explanations
+-- to the child rows when each item needs its own solution.
+CREATE TABLE question_explanation (
+    explanation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    question_id UUID NOT NULL REFERENCES question(question_id) ON DELETE CASCADE,
+    display_order INT NOT NULL DEFAULT 1,
+    block_type VARCHAR(20) NOT NULL,
+    content_text TEXT,
+    image_url VARCHAR(255),
+    alt_text VARCHAR(255),
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
+    CONSTRAINT chk_question_explanation_block_type CHECK (
+        block_type IN ('text', 'image')
+    ),
+    CONSTRAINT chk_question_explanation_has_content CHECK (
+        (block_type = 'text' AND content_text IS NOT NULL)
+        OR (block_type = 'image' AND image_url IS NOT NULL)
+    )
+);
+
 -- =========================================================================
--- 4. BẢNG TRACKING QUÁ TRÌNH THI (LỊCH SỬ)
+-- 4. Attempt tracking
 -- =========================================================================
 
 CREATE TABLE exam_attempt (
     attempt_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(user_id) ON DELETE RESTRICT, -- Thay đổi thành RESTRICT để bảo vệ dữ liệu thi
-    exam_id UUID REFERENCES exam(exam_id) ON DELETE RESTRICT,  -- Thay đổi thành RESTRICT
+    user_id UUID REFERENCES users(user_id) ON DELETE RESTRICT,
+    exam_id UUID REFERENCES exam(exam_id) ON DELETE RESTRICT,
     attempt_type VARCHAR(50),
     marks DECIMAL(5, 2) DEFAULT 0.0,
     status VARCHAR(20) DEFAULT 'in_progress',
@@ -152,136 +179,108 @@ CREATE TABLE attempt_section_log (
 CREATE TABLE attempt_detail (
     detail_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     log_id UUID REFERENCES attempt_section_log(log_id) ON DELETE CASCADE,
-    question_id UUID REFERENCES question(question_id) ON DELETE RESTRICT, -- Ngăn việc xóa câu hỏi làm hỏng chi tiết bài làm cũ
+    question_id UUID REFERENCES question(question_id) ON DELETE RESTRICT,
     selected_ans TEXT,
     is_correct BOOLEAN
 );
 
 -- =========================================================================
--- 5. ÁP DỤNG TRIGGERS
--- =========================================================================
-CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-CREATE TRIGGER update_exam_room_modtime BEFORE UPDATE ON exam_room FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-CREATE TRIGGER update_user_room_access_modtime BEFORE UPDATE ON user_room_access FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-CREATE TRIGGER update_payment_modtime BEFORE UPDATE ON payment FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-CREATE TRIGGER update_exam_modtime BEFORE UPDATE ON exam FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-CREATE TRIGGER update_question_modtime BEFORE UPDATE ON question FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-CREATE TRIGGER update_exam_attempt_modtime BEFORE UPDATE ON exam_attempt FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-
--- =========================================================================
--- 6. TẠO INDEXES (TỐI ƯU HIỆU SUẤT TRUY VẤN)
+-- 5. Triggers
 -- =========================================================================
 
-CREATE INDEX idx_user_room_access_user ON user_room_access(user_id);
-CREATE INDEX idx_user_room_access_user_status_expiry ON user_room_access(user_id, status, expired_at);
-CREATE INDEX idx_user_room_access_room_status ON user_room_access(room_id, status);
-CREATE INDEX idx_user_room_access_source ON user_room_access(source_type, source_ref_id);
-CREATE INDEX idx_payment_user ON payment(user_id);
-CREATE INDEX idx_room_activity_stats_attempt_count ON room_activity_stats(attempt_count DESC, updated_at DESC);
-CREATE INDEX idx_exam_room ON exam(room_id);
-CREATE INDEX idx_question_section ON question(section_id);
-CREATE INDEX idx_question_parent ON question(parent_id);
-CREATE INDEX idx_exam_attempt_user_exam ON exam_attempt(user_id, exam_id);
-CREATE INDEX idx_attempt_detail_log ON attempt_detail(log_id);
+CREATE TRIGGER update_users_modtime
+BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
--- Tối ưu truy vấn JSONB cho các options câu hỏi
-CREATE INDEX idx_question_options ON question USING GIN (options);
+CREATE TRIGGER update_exam_room_modtime
+BEFORE UPDATE ON exam_room
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
-
--- 1. Tăng tốc lấy section theo exam
-CREATE INDEX IF NOT EXISTS idx_exam_section_exam_id
-ON exam_section(exam_id);
-
--- 2. Tăng tốc log section theo attempt
-CREATE INDEX IF NOT EXISTS idx_attempt_section_log_attempt_id
-ON attempt_section_log(attempt_id);
-
--- 3. Nếu hay query section cụ thể trong 1 attempt
-CREATE INDEX IF NOT EXISTS idx_attempt_section_log_attempt_section
-ON attempt_section_log(attempt_id, section_id);
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_attempt_section_log_attempt_section
-ON attempt_section_log(attempt_id, section_id);
-
--- 4. Tăng tốc lookup answer theo question
-CREATE INDEX IF NOT EXISTS idx_attempt_detail_question_id
-ON attempt_detail(question_id);
-
--- 5. Chặn 1 câu bị lưu nhiều dòng trong cùng 1 log
-CREATE UNIQUE INDEX IF NOT EXISTS uq_attempt_detail_log_question
-ON attempt_detail(log_id, question_id);
-
--- 6. Chặn 1 user có nhiều bài đang làm cho cùng 1 exam
-CREATE UNIQUE INDEX IF NOT EXISTS uq_exam_attempt_user_exam_in_progress
-ON exam_attempt(user_id, exam_id)
-WHERE status = 'in_progress';
-
--- 7. Tăng tốc query bài đang làm / lịch sử gần nhất
-CREATE INDEX IF NOT EXISTS idx_exam_attempt_status_started_at
-ON exam_attempt(status, started_at DESC);
-
--- 8. Tăng tốc query attempt theo exam
-CREATE INDEX IF NOT EXISTS idx_exam_attempt_exam_id
-ON exam_attempt(exam_id);
-
--- 9. Tăng tốc đếm người đã luyện tập theo đề
-CREATE INDEX IF NOT EXISTS idx_exam_attempt_exam_user
-ON exam_attempt(exam_id, user_id);
-
--- =========================================================================
--- 7. MIGRATION SAFE-GUARDS FOR EXISTING DATABASES
--- =========================================================================
-
-ALTER TABLE IF EXISTS user_room_access
-    ADD COLUMN IF NOT EXISTS source_type VARCHAR(50) NOT NULL DEFAULT 'system';
-
-ALTER TABLE IF EXISTS user_room_access
-    ADD COLUMN IF NOT EXISTS source_ref_id UUID;
-
-ALTER TABLE IF EXISTS user_room_access
-    ADD COLUMN IF NOT EXISTS granted_by_user_id UUID REFERENCES users(user_id) ON DELETE SET NULL;
-
-ALTER TABLE IF EXISTS user_room_access
-    ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active';
-
-ALTER TABLE IF EXISTS user_room_access
-    ADD COLUMN IF NOT EXISTS note VARCHAR(255);
-
-ALTER TABLE IF EXISTS user_room_access
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
-
-UPDATE user_room_access
-SET
-    source_type = COALESCE(NULLIF(source_type, ''), 'legacy'),
-    status = COALESCE(NULLIF(status, ''), 'active'),
-    updated_at = COALESCE(updated_at, granted_at, CURRENT_TIMESTAMP)
-WHERE
-    source_type IS NULL
-    OR source_type = ''
-    OR status IS NULL
-    OR status = ''
-    OR updated_at IS NULL;
-
-DROP TRIGGER IF EXISTS update_user_room_access_modtime ON user_room_access;
 CREATE TRIGGER update_user_room_access_modtime
 BEFORE UPDATE ON user_room_access
 FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
-CREATE INDEX IF NOT EXISTS idx_user_room_access_user ON user_room_access(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_room_access_user_status_expiry ON user_room_access(user_id, status, expired_at);
-CREATE INDEX IF NOT EXISTS idx_user_room_access_room_status ON user_room_access(room_id, status);
-CREATE INDEX IF NOT EXISTS idx_user_room_access_source ON user_room_access(source_type, source_ref_id);
-CREATE INDEX IF NOT EXISTS idx_room_activity_stats_attempt_count ON room_activity_stats(attempt_count DESC, updated_at DESC);
+CREATE TRIGGER update_payment_modtime
+BEFORE UPDATE ON payment
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
-INSERT INTO room_activity_stats (room_id, attempt_count, updated_at)
-SELECT
-    e.room_id,
-    COUNT(*) AS attempt_count,
-    CURRENT_TIMESTAMP
-FROM exam_attempt ea
-JOIN exam e ON e.exam_id = ea.exam_id
-GROUP BY e.room_id
-ON CONFLICT (room_id)
-DO UPDATE SET
-    attempt_count = EXCLUDED.attempt_count,
-    updated_at = CURRENT_TIMESTAMP;
+CREATE TRIGGER update_exam_modtime
+BEFORE UPDATE ON exam
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+CREATE TRIGGER update_question_modtime
+BEFORE UPDATE ON question
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+CREATE TRIGGER update_question_explanation_modtime
+BEFORE UPDATE ON question_explanation
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+CREATE TRIGGER update_exam_attempt_modtime
+BEFORE UPDATE ON exam_attempt
+FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+-- =========================================================================
+-- 6. Indexes
+-- =========================================================================
+
+CREATE INDEX idx_user_room_access_user
+ON user_room_access(user_id);
+
+CREATE INDEX idx_user_room_access_user_status_expiry
+ON user_room_access(user_id, status, expired_at);
+
+CREATE INDEX idx_user_room_access_room_status
+ON user_room_access(room_id, status);
+
+CREATE INDEX idx_user_room_access_source
+ON user_room_access(source_type, source_ref_id);
+
+CREATE INDEX idx_payment_user
+ON payment(user_id);
+
+CREATE INDEX idx_room_activity_stats_attempt_count
+ON room_activity_stats(attempt_count DESC, updated_at DESC);
+
+CREATE INDEX idx_exam_room
+ON exam(room_id);
+
+CREATE INDEX idx_exam_section_exam_id
+ON exam_section(exam_id);
+
+CREATE INDEX idx_question_section
+ON question(section_id);
+
+CREATE INDEX idx_question_parent
+ON question(parent_id);
+
+CREATE INDEX idx_question_options
+ON question USING GIN (options);
+
+CREATE INDEX idx_question_explanation_question_order
+ON question_explanation(question_id, display_order);
+
+CREATE INDEX idx_exam_attempt_user_exam
+ON exam_attempt(user_id, exam_id);
+
+CREATE UNIQUE INDEX uq_exam_attempt_user_exam_in_progress
+ON exam_attempt(user_id, exam_id)
+WHERE status = 'in_progress';
+
+CREATE INDEX idx_exam_attempt_status_started_at
+ON exam_attempt(status, started_at DESC);
+
+CREATE INDEX idx_exam_attempt_exam_id
+ON exam_attempt(exam_id);
+
+CREATE INDEX idx_exam_attempt_exam_user
+ON exam_attempt(exam_id, user_id);
+
+CREATE UNIQUE INDEX uq_attempt_section_log_attempt_section
+ON attempt_section_log(attempt_id, section_id);
+
+CREATE INDEX idx_attempt_detail_question_id
+ON attempt_detail(question_id);
+
+CREATE UNIQUE INDEX uq_attempt_detail_log_question
+ON attempt_detail(log_id, question_id);
