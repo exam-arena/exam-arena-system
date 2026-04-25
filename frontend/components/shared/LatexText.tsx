@@ -12,7 +12,7 @@ export function LatexText({ content }: LatexTextProps) {
     if (!content.includes('$')) return <>{content}</>;
 
     // Regex to match block math $$...$$ or inline math $...$
-    const regex = /(\$\$?)(.+?)\1/g;
+    const regex = /(\$\$?)(.+?)\1/gs;
 
     const els = [];
     let lastIndex = 0;
