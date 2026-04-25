@@ -13,13 +13,20 @@ import { BrandedLoadingScreen } from "@/components/shared/BrandedLoadingScreen";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getAttemptReview } from "@/lib/api/attempts/api";
-import type { AttemptProcessingData, AttemptQuestion, AttemptReviewData } from "@/lib/api/attempts/types";
+import type {
+    AttemptExplanationBlock,
+    AttemptProcessingData,
+    AttemptQuestion,
+    AttemptReviewData,
+} from "@/lib/api/attempts/types";
 
 interface GroupedQuestionChild {
     id: string;
     content: string;
     options: { id: string; text: string }[];
-    correct_answer?: string;
+    correct_answer?: string | null;
+    explanation?: string;
+    explanation_blocks?: AttemptExplanationBlock[];
 }
 
 interface GroupedQuestion {
@@ -28,8 +35,9 @@ interface GroupedQuestion {
     content: string;
     imageUrl: string | null;
     options: { id: string; text: string }[] | null;
-    correct_answer?: string;
+    correct_answer?: string | null;
     explanation?: string;
+    explanation_blocks?: AttemptExplanationBlock[];
     children?: GroupedQuestionChild[];
     sTitle: string;
     sDesc: string;
@@ -42,6 +50,13 @@ const SECTION_2_TITLE = "Phần II: Câu trắc nghiệm đúng - Sai";
 const SECTION_2_DESC = "Trong mỗi ý a, b, c, d ở mỗi câu, thí sinh chọn đúng hoặc sai.";
 const SECTION_3_TITLE = "Phần III: Câu trắc nghiệm trả lời ngắn";
 const SECTION_3_DESC = "Thí sinh điền đáp án dạng số vào ô trống.";
+const TRUE_FALSE_LABELS = ["a", "b", "c", "d", "e", "f"];
+
+function formatCorrectAnswer(answer?: string | null) {
+    if (answer === "True") return "Đúng";
+    if (answer === "False") return "Sai";
+    return answer ?? undefined;
+}
 
 function buildGroupedQuestions(questions: AttemptQuestion[]): GroupedQuestion[] {
     const grouped: GroupedQuestion[] = [];
@@ -71,6 +86,7 @@ function buildGroupedQuestions(questions: AttemptQuestion[]): GroupedQuestion[] 
             options: question.options,
             correct_answer: question.correct_answer,
             explanation: question.explanation,
+            explanation_blocks: question.explanation_blocks,
             sTitle: "",
             sDesc: "",
             globalNum: 0,
@@ -82,6 +98,8 @@ function buildGroupedQuestions(questions: AttemptQuestion[]): GroupedQuestion[] 
                 content: child.content,
                 options: child.options ?? [],
                 correct_answer: child.correct_answer,
+                explanation: child.explanation,
+                explanation_blocks: child.explanation_blocks,
             }));
         }
 
@@ -314,24 +332,37 @@ export default function ReviewPage() {
                                                                 options={currentQ.options}
                                                                 value={userAnswers[currentQ.id]}
                                                                 mode="review"
-                                                                correctAnswer={currentQ.correct_answer}
+                                                                correctAnswer={currentQ.correct_answer ?? undefined}
                                                             />
                                                         )}
 
                                                         {currentQ.type === "cluster_context" && currentQ.children && (
-                                                            <TrueFalse
-                                                                parentId={currentQ.id}
-                                                                statements={currentQ.children}
-                                                                answers={userAnswers}
-                                                                mode="review"
-                                                                correctAnswers={currentQ.children.reduce<Record<string, string | undefined>>(
-                                                                    (acc, child) => {
-                                                                        acc[child.id] = child.correct_answer;
-                                                                        return acc;
-                                                                    },
-                                                                    {}
-                                                                )}
-                                                            />
+                                                            <>
+                                                                <TrueFalse
+                                                                    parentId={currentQ.id}
+                                                                    statements={currentQ.children}
+                                                                    answers={userAnswers}
+                                                                    mode="review"
+                                                                    correctAnswers={currentQ.children.reduce<Record<string, string | undefined>>(
+                                                                        (acc, child) => {
+                                                                            acc[child.id] = child.correct_answer ?? undefined;
+                                                                            return acc;
+                                                                        },
+                                                                        {}
+                                                                    )}
+                                                                />
+
+                                                                <div className="mt-2 flex flex-col gap-2">
+                                                                    {currentQ.children.map((child, index) => (
+                                                                        <ExplanationCard
+                                                                            key={child.id}
+                                                                            correctAnswerText={`${TRUE_FALSE_LABELS[index] ?? index + 1}. ${formatCorrectAnswer(child.correct_answer) ?? ""}`}
+                                                                            explanation={child.explanation}
+                                                                            explanationBlocks={child.explanation_blocks}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </>
                                                         )}
 
                                                         {currentQ.type === "short_answer" && (
@@ -339,17 +370,22 @@ export default function ReviewPage() {
                                                                 name={currentQ.id}
                                                                 value={userAnswers[currentQ.id] || ""}
                                                                 mode="review"
-                                                                correctAnswer={currentQ.correct_answer}
+                                                                correctAnswer={currentQ.correct_answer ?? undefined}
                                                             />
                                                         )}
 
-                                                        <ExplanationCard
-                                                            correctAnswerText={currentQ.correct_answer}
-                                                            explanation={
-                                                                currentQ.explanation ||
-                                                                "Chưa có lời giải chi tiết cho câu hỏi này."
-                                                            }
-                                                        />
+                                                        {(currentQ.type !== "cluster_context" ||
+                                                            currentQ.explanation ||
+                                                            (currentQ.explanation_blocks?.length ?? 0) > 0) && (
+                                                            <ExplanationCard
+                                                                correctAnswerText={formatCorrectAnswer(currentQ.correct_answer)}
+                                                                explanation={
+                                                                    currentQ.explanation ||
+                                                                    "Chưa có lời giải chi tiết cho câu hỏi này."
+                                                                }
+                                                                explanationBlocks={currentQ.explanation_blocks}
+                                                            />
+                                                        )}
                                                     </div>
                                                 </Question>
                                             </div>

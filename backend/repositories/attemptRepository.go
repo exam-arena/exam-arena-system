@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"backend/config"
@@ -40,6 +41,14 @@ type AttemptQuestionOptionRow struct {
 	Text string `json:"text"`
 }
 
+type AttemptQuestionExplanationBlockRow struct {
+	BlockType   string                 `json:"block_type"`
+	ContentText *string                `json:"content_text,omitempty"`
+	ImageURL    *string                `json:"image_url,omitempty"`
+	AltText     *string                `json:"alt_text,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
 type AttemptQuestionRow struct {
 	QuestionID   string
 	ParentID     *string
@@ -52,17 +61,18 @@ type AttemptQuestionRow struct {
 }
 
 type AttemptReviewQuestionRow struct {
-	QuestionID    string
-	ParentID      *string
-	Content       string
-	ImageURL      *string
-	OptionsRaw    []byte
-	Type          string
-	QuestionType  string
-	CorrectAnswer *string
-	Explanation   *string
-	SelectedAns   *string
-	Options       []AttemptQuestionOptionRow `gorm:"-"`
+	QuestionID           string
+	ParentID             *string
+	Content              string
+	ImageURL             *string
+	OptionsRaw           []byte
+	Type                 string
+	QuestionType         string
+	CorrectAnswer        *string
+	ExplanationBlocksRaw []byte
+	ExplanationBlocks    []AttemptQuestionExplanationBlockRow `gorm:"-"`
+	SelectedAns          *string
+	Options              []AttemptQuestionOptionRow `gorm:"-"`
 }
 
 type SaveAttemptAnswerInput struct {
@@ -512,7 +522,7 @@ func ResolveAttemptAnswersAuthorized(ctx context.Context, attemptID, userID stri
 					ORDER BY question_id
 				) FILTER (WHERE question_id IS NOT NULL),
 				'[]'::json
-			)::text::bytea AS rows_raw
+			)::text AS rows_raw
 		FROM resolved
 	`, attemptID, userID, string(payload), userID, userID).Scan(&queryResult).Error
 	if err != nil {
@@ -633,7 +643,7 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 					ORDER BY question_id
 				) FILTER (WHERE question_id IS NOT NULL),
 				'[]'::json
-			)::text::bytea AS saved_rows_raw
+			)::text AS saved_rows_raw
 		FROM upserted
 	`, attemptID, userID, string(payload), userID, userID).Scan(&queryResult).Error
 	if err != nil {
@@ -670,7 +680,7 @@ func ListQuestionsByExamID(ctx context.Context, examID string) ([]AttemptQuestio
 			q.parent_id,
 			q.content,
 			q.image_url,
-			COALESCE(q.options, '[]'::jsonb)::text::bytea AS options_raw,
+			COALESCE(q.options, '[]'::jsonb)::text AS options_raw,
 			q.type,
 			q.question_type
 		FROM exam_section s
@@ -690,7 +700,7 @@ func ListQuestionsByExamID(ctx context.Context, examID string) ([]AttemptQuestio
 		}
 
 		if err := json.Unmarshal(rows[i].OptionsRaw, &rows[i].Options); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("decode question options for question %s: %w", rows[i].QuestionID, err)
 		}
 		if rows[i].Options == nil {
 			rows[i].Options = make([]AttemptQuestionOptionRow, 0)
@@ -864,7 +874,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 					)
 				) FILTER (WHERE question_id IS NOT NULL),
 				'[]'::json
-			)::text::bytea AS saved_rows_raw
+			)::text AS saved_rows_raw
 		FROM result_rows
 	`, attemptID, userID, allowPostSubmitFlush, string(payload), userID, allowPostSubmitFlush, userID).Scan(&queryResult).Error
 	if err != nil {
@@ -1167,11 +1177,25 @@ func ListAttemptReviewQuestions(ctx context.Context, attemptID string) ([]Attemp
 			q.parent_id,
 			q.content,
 			q.image_url,
-			COALESCE(q.options, '[]'::jsonb)::text::bytea AS options_raw,
+			COALESCE(q.options, '[]'::jsonb)::text AS options_raw,
 			q.type,
 			q.question_type,
 			q.correct_answer,
-			q.explanation,
+			COALESCE((
+				SELECT jsonb_agg(
+					jsonb_build_object(
+						'block_type', qe.block_type,
+						'content_text', qe.content_text,
+						'image_url', qe.image_url,
+						'alt_text', qe.alt_text,
+						'metadata', COALESCE(qe.metadata, '{}'::jsonb)
+					)
+					ORDER BY qe.display_order, qe.explanation_id
+				)
+				FROM question_explanation qe
+				WHERE qe.question_id = q.question_id
+				  AND qe.deleted_at IS NULL
+			), '[]'::jsonb)::text AS explanation_blocks_raw,
 			ad.selected_ans
 		FROM exam_attempt a
 		JOIN exam_section s
@@ -1201,14 +1225,24 @@ func ListAttemptReviewQuestions(ctx context.Context, attemptID string) ([]Attemp
 	for i := range rows {
 		if len(rows[i].OptionsRaw) == 0 {
 			rows[i].Options = make([]AttemptQuestionOptionRow, 0)
-			continue
+		} else {
+			if err := json.Unmarshal(rows[i].OptionsRaw, &rows[i].Options); err != nil {
+				return nil, fmt.Errorf("decode review question options for question %s: %w", rows[i].QuestionID, err)
+			}
+			if rows[i].Options == nil {
+				rows[i].Options = make([]AttemptQuestionOptionRow, 0)
+			}
 		}
 
-		if err := json.Unmarshal(rows[i].OptionsRaw, &rows[i].Options); err != nil {
-			return nil, err
-		}
-		if rows[i].Options == nil {
-			rows[i].Options = make([]AttemptQuestionOptionRow, 0)
+		if len(rows[i].ExplanationBlocksRaw) == 0 {
+			rows[i].ExplanationBlocks = make([]AttemptQuestionExplanationBlockRow, 0)
+		} else {
+			if err := json.Unmarshal(rows[i].ExplanationBlocksRaw, &rows[i].ExplanationBlocks); err != nil {
+				return nil, fmt.Errorf("decode review explanation blocks for question %s: %w", rows[i].QuestionID, err)
+			}
+			if rows[i].ExplanationBlocks == nil {
+				rows[i].ExplanationBlocks = make([]AttemptQuestionExplanationBlockRow, 0)
+			}
 		}
 	}
 

@@ -7,6 +7,7 @@ import type {
   AttemptUser,
 } from "./types";
 import type { SectionRaw } from "../exams/types";
+import type { QuestionRaw } from "../exams/types";
 
 interface RawUser {
   username: string;
@@ -37,12 +38,27 @@ function mapUser(raw: RawUser): AttemptUser {
   };
 }
 
+function mapRawQuestion(raw: QuestionRaw): AttemptQuestion {
+  return {
+    question_id: raw.question_id,
+    parent_id: raw.parent_id,
+    content: raw.content,
+    image_url: raw.image_url,
+    options: raw.options ?? [],
+    type: raw.type,
+    question_type: raw.question_type,
+    explanation: raw.explanation,
+    explanation_blocks: raw.explanation_blocks,
+    correct_answer: raw.correct_answer,
+  };
+}
+
 export function mapAttemptData(
   exam: RawExam,
   user: RawUser
 ): AttemptData {
   const questions = exam.sections.reduce(
-    (acc: AttemptQuestion[], sec) => acc.concat(sec.questions),
+    (acc: AttemptQuestion[], sec) => acc.concat(sec.questions.map(mapRawQuestion)),
     [] as AttemptQuestion[]
   );
 
@@ -104,7 +120,7 @@ export function mapAttemptReview(
   fallbackAnswers: Record<string, string>
 ): AttemptReviewData {
   const questions = exam.sections.reduce(
-    (acc: AttemptQuestion[], sec) => acc.concat(sec.questions),
+    (acc: AttemptQuestion[], sec) => acc.concat(sec.questions.map(mapRawQuestion)),
     [] as AttemptQuestion[]
   );
 

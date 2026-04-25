@@ -36,6 +36,14 @@ export interface AttemptQuestionOption {
   text: string;
 }
 
+export interface AttemptExplanationBlock {
+  block_type: "text" | "image";
+  content_text?: string;
+  image_url?: string;
+  alt_text?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface AttemptQuestion {
   question_id: string;
   parent_id: string | null;
@@ -45,7 +53,8 @@ export interface AttemptQuestion {
   type: string;
   question_type: string;
   explanation?: string;
-  correct_answer?: string;
+  explanation_blocks?: AttemptExplanationBlock[];
+  correct_answer?: string | null;
 }
 
 export interface AttemptData {
