@@ -100,6 +100,14 @@ type AttemptQuestionOptionResponse struct {
 	Text string `json:"text"`
 }
 
+type AttemptQuestionExplanationBlockResponse struct {
+	BlockType   string                 `json:"block_type"`
+	ContentText *string                `json:"content_text,omitempty"`
+	ImageURL    *string                `json:"image_url,omitempty"`
+	AltText     *string                `json:"alt_text,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
 type AttemptQuestionResponse struct {
 	QuestionID   string                          `json:"question_id"`
 	ParentID     *string                         `json:"parent_id"`
@@ -111,15 +119,16 @@ type AttemptQuestionResponse struct {
 }
 
 type AttemptReviewQuestionResponse struct {
-	QuestionID    string                          `json:"question_id"`
-	ParentID      *string                         `json:"parent_id"`
-	Content       string                          `json:"content"`
-	ImageURL      *string                         `json:"image_url"`
-	Options       []AttemptQuestionOptionResponse `json:"options"`
-	Type          string                          `json:"type"`
-	QuestionType  string                          `json:"question_type"`
-	CorrectAnswer *string                         `json:"correct_answer,omitempty"`
-	Explanation   *string                         `json:"explanation,omitempty"`
+	QuestionID        string                                    `json:"question_id"`
+	ParentID          *string                                   `json:"parent_id"`
+	Content           string                                    `json:"content"`
+	ImageURL          *string                                   `json:"image_url"`
+	Options           []AttemptQuestionOptionResponse           `json:"options"`
+	Type              string                                    `json:"type"`
+	QuestionType      string                                    `json:"question_type"`
+	CorrectAnswer     *string                                   `json:"correct_answer,omitempty"`
+	Explanation       *string                                   `json:"explanation,omitempty"`
+	ExplanationBlocks []AttemptQuestionExplanationBlockResponse `json:"explanation_blocks,omitempty"`
 }
 
 type AttemptDetailResponse struct {
@@ -1698,17 +1707,19 @@ func GetAttemptReview(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 					Text: option.Text,
 				})
 			}
+			explanationBlocks, explanationText := mapAttemptReviewExplanationBlocks(question.ExplanationBlocks)
 
 			items = append(items, AttemptReviewQuestionResponse{
-				QuestionID:    question.QuestionID,
-				ParentID:      question.ParentID,
-				Content:       question.Content,
-				ImageURL:      question.ImageURL,
-				Options:       options,
-				Type:          question.Type,
-				QuestionType:  question.QuestionType,
-				CorrectAnswer: question.CorrectAnswer,
-				Explanation:   question.Explanation,
+				QuestionID:        question.QuestionID,
+				ParentID:          question.ParentID,
+				Content:           question.Content,
+				ImageURL:          question.ImageURL,
+				Options:           options,
+				Type:              question.Type,
+				QuestionType:      question.QuestionType,
+				CorrectAnswer:     question.CorrectAnswer,
+				Explanation:       explanationText,
+				ExplanationBlocks: explanationBlocks,
 			})
 
 			if question.SelectedAns != nil {
@@ -1736,6 +1747,36 @@ func GetAttemptReview(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 	}
 
 	return result.(*AttemptReviewResponse), nil
+}
+
+func mapAttemptReviewExplanationBlocks(blocks []repositories.AttemptQuestionExplanationBlockRow) ([]AttemptQuestionExplanationBlockResponse, *string) {
+	if len(blocks) == 0 {
+		return nil, nil
+	}
+
+	result := make([]AttemptQuestionExplanationBlockResponse, 0, len(blocks))
+	textParts := make([]string, 0, len(blocks))
+	for _, block := range blocks {
+		result = append(result, AttemptQuestionExplanationBlockResponse{
+			BlockType:   block.BlockType,
+			ContentText: block.ContentText,
+			ImageURL:    block.ImageURL,
+			AltText:     block.AltText,
+			Metadata:    block.Metadata,
+		})
+		if block.BlockType == "text" && block.ContentText != nil {
+			text := strings.TrimSpace(*block.ContentText)
+			if text != "" {
+				textParts = append(textParts, text)
+			}
+		}
+	}
+
+	if len(textParts) == 0 {
+		return result, nil
+	}
+	explanation := strings.Join(textParts, "\n\n")
+	return result, &explanation
 }
 
 func buildAttemptQuestionsCacheKey(examID string) string {
