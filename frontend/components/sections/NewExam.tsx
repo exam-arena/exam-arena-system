@@ -3,9 +3,15 @@ import ExamCard from "@/components/exam/ExamCard";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getLatestExams } from '@/lib/api/exams/api';
+import type { ExamRaw } from "@/lib/api/exams/types";
 
 export default async function NewExam() {
-    const exams = await getLatestExams();
+    let exams: ExamRaw[] = [];
+    try {
+        exams = await getLatestExams();
+    } catch {
+        exams = [];
+    }
     const displayExams = exams.slice(0, 8);
 
     return (
