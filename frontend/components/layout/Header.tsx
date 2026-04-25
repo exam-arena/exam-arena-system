@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Menu, ChevronDown, User } from "lucide-react";
+import { Menu, Search, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,13 +17,63 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Sheet,
-  SheetTrigger,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
-import Image from "next/image";
+import type { UserData } from "@/lib/api/auth/types";
 import { useAuth } from "@/lib/auth/hooks";
+
+function UserAvatarDropdown({
+  user,
+  onLogout,
+  className = "size-10",
+}: {
+  user: UserData;
+  onLogout: () => void;
+  className?: string;
+}) {
+  const avatarUrl = user.avatar_url?.trim() || undefined;
+  const displayName = user.fullname?.trim() || user.username;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`${className} rounded-full border border-white/80 bg-white/20 p-0.5 shadow-sm transition-colors hover:bg-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0050E2]`}
+          aria-label="Mở menu tài khoản"
+        >
+          <Avatar className="size-full after:hidden">
+            <AvatarImage src={avatarUrl} alt={displayName} />
+            <AvatarFallback className="bg-white/25 text-white">
+              <User className="size-5" />
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem asChild>
+          <Link href="/profile">Hồ sơ cá nhân</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/history">Lịch sử thi</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            onLogout();
+          }}
+          className="text-red-600 focus:text-red-600"
+        >
+          Đăng xuất
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -35,24 +87,26 @@ export default function Header() {
       router.replace("/");
       router.refresh();
     } catch {
-      window.alert("Khong the dang xuat. Vui long thu lai.");
+      window.alert("Không thể đăng xuất. Vui lòng thử lại.");
     }
   };
 
-  const navLinks = useMemo(() => [
-    { label: "Trang chủ", href: isLoggedIn ? "/home" : "/" },
-    { label: "Phòng luyện thi", href: "/rooms" },
-    { label: "Đề thi", href: "/exams" },
-    { label: "Tài liệu tham khảo", href: "/documents" },
-  ], [isLoggedIn]);
+  const navLinks = useMemo(
+    () => [
+      { label: "Trang chủ", href: isLoggedIn ? "/home" : "/" },
+      { label: "Phòng luyện thi", href: "/rooms" },
+      { label: "Đề thi", href: "/exams" },
+      { label: "Tài liệu tham khảo", href: "/documents" },
+    ],
+    [isLoggedIn]
+  );
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-[#0050E2] h-20 overflow-hidden">
-      {/* ─── Desktop ─── */}
-      <div className="hidden lg:flex items-center justify-between h-full px-24 max-w-480 mx-auto gap-6">
-
+    <header className="sticky top-0 z-50 h-20 w-full overflow-hidden bg-[#0050E2]">
+      {/* Desktop */}
+      <div className="mx-auto hidden h-full max-w-480 items-center justify-between gap-6 px-24 lg:flex">
         {/* Logo */}
-        <Link href="/" className="flex flex-col shrink-0 items-center justify-center p-2.5 w-47">
+        <Link href="/" className="flex w-47 shrink-0 flex-col items-center justify-center p-2.5">
           <div className="flex flex-col items-center justify-center gap-1">
             <Image
               src="/logoamban.png"
@@ -60,87 +114,61 @@ export default function Header() {
               width={168}
               height={24}
               priority
-              className="w-42 relative max-h-full object-cover"
+              className="relative max-h-full w-42 object-cover"
             />
-            <span className="text-[0.625rem] text-white font-medium tracking-widest uppercase leading-3.5 mt-1">
+            <span className="mt-1 text-[0.625rem] font-medium uppercase leading-3.5 tracking-widest text-white">
               Hệ thống luyện thi THPTQG
             </span>
           </div>
         </Link>
 
         {/* Nav */}
-        <nav className="flex items-center justify-center gap-10 h-5 text-[1rem] font-bold text-white">
+        <nav className="flex h-5 items-center justify-center gap-10 text-[1rem] font-bold text-white">
           {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="flex items-center justify-center hover:text-[#FFD600] transition-colors">
-              <span className="leading-5 whitespace-nowrap">{link.label}</span>
+            <Link
+              key={link.href}
+              href={link.href}
+              className="flex items-center justify-center transition-colors hover:text-[#FFD600]"
+            >
+              <span className="whitespace-nowrap leading-5">{link.label}</span>
             </Link>
           ))}
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center justify-end gap-3 w-100">
-
+        <div className="flex w-100 items-center justify-end gap-3">
           {/* Search Bar - Hiện ở cả 2 trạng thái */}
-          <div className="relative flex items-center h-9 w-[16.938rem] rounded-num-30 bg-white/20 px-4 gap-1 shrink-0 overflow-hidden">
-            <Search className="size-5 text-white/70 shrink-0" />
+          <div className="relative flex h-9 w-[16.938rem] shrink-0 items-center gap-1 overflow-hidden rounded-num-30 bg-white/20 px-4">
+            <Search className="size-5 shrink-0 text-white/70" />
             <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm"
-              className="w-full bg-transparent border-none text-[0.875rem] text-white placeholder:text-white/70 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-full placeholder:font-normal font-normal"
+              className="h-full w-full border-none bg-transparent px-0 text-[0.875rem] font-normal text-white placeholder:font-normal placeholder:text-white/70 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
 
           {/* Conditional Auth Block */}
           {isLoggedIn ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="h-9 rounded-num-30 bg-white/20 border border-white box-border flex items-center justify-center py-2 px-3 gap-2 shrink-0 cursor-pointer hover:bg-white/30 transition-colors group"
-                >
-                  <div className="flex items-center gap-[0.35rem] shrink-0">
-                    <div className="size-6 bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
-                      <User className="size-4 text-white" />
-                    </div>
-                    <span className="text-[1rem] text-white font-medium pl-1 pr-1">{user.fullname}</span>
-                  </div>
-                  <ChevronDown className="size-[1.2rem] text-white group-hover:translate-y-0.5 transition-transform" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">Hồ sơ cá nhân</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/history">Lịch sử thi</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    handleLogout();
-                  }}
-                  className="text-red-600 focus:text-red-600"
-                >
-                  Đăng xuất
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <UserAvatarDropdown user={user} onLogout={handleLogout} />
           ) : (
-            <Button asChild className="h-9 px-6 rounded-num-30 bg-[#FFD600] text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D] border-none shrink-0">
-              <Link href="/login" className="text-[#004EDC]!">Đăng nhập</Link>
+            <Button
+              asChild
+              className="h-9 shrink-0 rounded-num-30 border-none bg-[#FFD600] px-6 text-[1rem] font-semibold text-gray-900 hover:bg-[#FFE44D]"
+            >
+              <Link href="/login" className="text-[#004EDC]!">
+                Đăng nhập
+              </Link>
             </Button>
           )}
-
         </div>
       </div>
 
-      {/* ─── Mobile ─── */}
-      <div className="flex lg:hidden items-center justify-between h-full px-4 sm:px-6">
+      {/* Mobile */}
+      <div className="flex h-full items-center justify-between px-4 sm:px-6 lg:hidden">
         {/* Logo */}
-        <Link href="/" className="flex flex-col items-center shrink-0">
+        <Link href="/" className="flex shrink-0 flex-col items-center">
           <Image
             src="/logoamban.png"
             alt="Exam Arena"
@@ -149,40 +177,51 @@ export default function Header() {
             priority
             className="object-contain"
           />
-          <span className="text-[9px] text-white/90 text-center uppercase leading-none mt-1">
+          <span className="mt-1 text-center text-[9px] uppercase leading-none text-white/90">
             Hệ thống luyện thi
           </span>
         </Link>
 
         {/* Mobile actions */}
         <div className="flex items-center gap-3">
-
           {isLoggedIn ? (
-            <div className="size-8 rounded-full bg-white/20 border border-white flex items-center justify-center">
-              <User className="size-4 text-white" />
-            </div>
+            <UserAvatarDropdown user={user} onLogout={handleLogout} className="size-9" />
           ) : (
-            <Button asChild size="sm" className="rounded-full bg-[#FFD600] text-xs font-semibold hover:bg-[#FFE44D] border-none">
-              <Link href="/login" className="text-[#004EDC]!">Đăng nhập</Link>
+            <Button
+              asChild
+              size="sm"
+              className="rounded-full border-none bg-[#FFD600] text-xs font-semibold hover:bg-[#FFE44D]"
+            >
+              <Link href="/login" className="text-[#004EDC]!">
+                Đăng nhập
+              </Link>
             </Button>
           )}
 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white hover:text-[#FFD600] hover:bg-white/10" aria-label="Mở menu">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10 hover:text-[#FFD600]"
+                aria-label="Mở menu"
+              >
                 <Menu className="size-6" />
               </Button>
             </SheetTrigger>
 
-            <SheetContent side="right" className="bg-[#2956DE] border-l-white/10 w-72">
+            <SheetContent side="right" className="w-72 border-l-white/10 bg-[#2956DE]">
               <SheetHeader>
-                <SheetTitle className="text-white text-left">Menu</SheetTitle>
+                <SheetTitle className="text-left text-white">Menu</SheetTitle>
               </SheetHeader>
 
-              <nav className="flex flex-col px-2 gap-1 mt-4">
+              <nav className="mt-4 flex flex-col gap-1 px-2">
                 {navLinks.map((link) => (
                   <Link key={link.href} href={link.href}>
-                    <Button variant="ghost" className="w-full justify-start text-sm font-medium text-white hover:bg-white/10 hover:text-[#FFD600]">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-sm font-medium text-white hover:bg-white/10 hover:text-[#FFD600]"
+                    >
                       {link.label}
                     </Button>
                   </Link>
