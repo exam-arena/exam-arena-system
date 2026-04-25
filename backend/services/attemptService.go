@@ -404,7 +404,7 @@ func SaveAttemptAnswers(ctx context.Context, input SaveAttemptAnswersInput) (*Sa
 		return cached, nil
 	}
 
-	saveKey := buildSaveAnswersKey(input.UserID, input.AttemptID)
+	saveKey := buildSaveAnswersKey(input.UserID, input.AttemptID, payloadHash)
 	result, err, _ := saveAnswersGroup.Do(saveKey, func() (interface{}, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -453,8 +453,8 @@ func acquireSaveAnswersLock(ctx context.Context, attemptID string) (func(), erro
 	return acquireRedisLockWithRetry(ctx, "save-answers-lock:"+attemptID)
 }
 
-func buildSaveAnswersKey(userID, attemptID string) string {
-	return "save-answers:" + userID + ":" + attemptID
+func buildSaveAnswersKey(userID, attemptID, payloadHash string) string {
+	return "save-answers:" + userID + ":" + attemptID + ":" + payloadHash
 }
 
 func buildSaveAnswersResponseCacheKey(payloadHash string) string {
