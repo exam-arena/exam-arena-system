@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -57,6 +58,7 @@ func StartAttempt(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
 		default:
+			log.Printf("[ERROR] StartAttempt failed exam_id=%s user_id=%s: %v", examID, userID.String(), err)
 			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
 		}
 		return
@@ -128,6 +130,7 @@ func GetAttempt(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrAttemptForbidden):
 			utils.SendError(w, http.StatusForbidden, "FORBIDDEN", "You are not allowed to access this attempt")
 		default:
+			log.Printf("[ERROR] GetAttempt failed attempt_id=%s user_id=%s: %v", attemptID, userID.String(), err)
 			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
 		}
 		return
@@ -272,6 +275,7 @@ func GetAttemptResult(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrAttemptNotSubmitted):
 			utils.SendError(w, http.StatusConflict, "ATTEMPT_NOT_SUBMITTED", "Attempt is not submitted")
 		default:
+			log.Printf("[ERROR] GetAttemptResult failed attempt_id=%s user_id=%s: %v", attemptID, userID.String(), err)
 			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
 		}
 		return
@@ -317,6 +321,7 @@ func GetAttemptReview(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrAttemptNotSubmitted):
 			utils.SendError(w, http.StatusConflict, "ATTEMPT_NOT_SUBMITTED", "Attempt is not submitted")
 		default:
+			log.Printf("[ERROR] GetAttemptReview failed attempt_id=%s user_id=%s: %v", attemptID, userID.String(), err)
 			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
 		}
 		return

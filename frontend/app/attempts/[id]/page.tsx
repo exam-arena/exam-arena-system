@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ApiError } from "@/lib/api/client";
 import { getAttempt, saveAttemptAnswers, submitAttempt } from "@/lib/api/attempts/api";
-import type { AttemptData, SaveAttemptAnswerInput } from "@/lib/api/attempts/types";
+import type { AttemptData, AttemptExplanationBlock, SaveAttemptAnswerInput } from "@/lib/api/attempts/types";
 
 interface GroupedQuestion {
   id: string;
@@ -36,13 +36,16 @@ interface GroupedQuestion {
   content: string;
   imageUrl: string | null;
   options: { id: string; text: string }[] | null;
-  correct_answer?: string;
+  correct_answer?: string | null;
   explanation?: string;
+  explanation_blocks?: AttemptExplanationBlock[];
   children?: {
     id: string;
     content: string;
     options: { id: string; text: string }[];
-    correct_answer?: string;
+    correct_answer?: string | null;
+    explanation?: string;
+    explanation_blocks?: AttemptExplanationBlock[];
   }[];
   sTitle: string;
   sDesc: string;
@@ -59,6 +62,13 @@ const ATTEMPT_TAB_LOCK_TTL_MS = 5000;
 const ATTEMPT_TAB_LOCK_HEARTBEAT_MS = 2000;
 const ATTEMPT_TIME_RESYNC_MS = 60000;
 const ATTEMPT_MAX_FOCUS_VIOLATIONS = 3;
+const TRUE_FALSE_LABELS = ["a", "b", "c", "d", "e", "f"];
+
+function formatCorrectAnswer(answer?: string | null) {
+  if (answer === "True") return "Đúng";
+  if (answer === "False") return "Sai";
+  return answer ?? undefined;
+}
 
 interface AttemptTabLockPayload {
   tabId: string;
@@ -1051,6 +1061,7 @@ export default function AttemptPage() {
         options: question.options ?? null,
         correct_answer: question.correct_answer,
         explanation: question.explanation,
+        explanation_blocks: question.explanation_blocks,
         sTitle: "",
         sDesc: "",
         globalNum: 0,
@@ -1062,6 +1073,8 @@ export default function AttemptPage() {
           content: child.content,
           options: child.options ?? [],
           correct_answer: child.correct_answer,
+          explanation: child.explanation,
+          explanation_blocks: child.explanation_blocks,
         }));
       }
 
@@ -1395,25 +1408,40 @@ export default function AttemptPage() {
             value={answers[currentQuestion.id]}
             onChange={(value) => handleAnswer(currentQuestion.id, value)}
             mode={mode}
-            correctAnswer={currentQuestion.correct_answer}
+            correctAnswer={currentQuestion.correct_answer ?? undefined}
           />
         )}
 
         {currentQuestion.type === "cluster_context" && currentQuestion.children && (
-          <TrueFalse
-            parentId={currentQuestion.id}
-            statements={currentQuestion.children}
-            answers={answers}
-            onChange={(childId, value) => handleAnswer(childId, value)}
-            mode={mode}
-            correctAnswers={currentQuestion.children.reduce<Record<string, string | undefined>>(
-              (acc, child) => {
-                acc[child.id] = child.correct_answer;
-                return acc;
-              },
-              {}
+          <>
+            <TrueFalse
+              parentId={currentQuestion.id}
+              statements={currentQuestion.children}
+              answers={answers}
+              onChange={(childId, value) => handleAnswer(childId, value)}
+              mode={mode}
+              correctAnswers={currentQuestion.children.reduce<Record<string, string | undefined>>(
+                (acc, child) => {
+                  acc[child.id] = child.correct_answer ?? undefined;
+                  return acc;
+                },
+                {}
+              )}
+            />
+
+            {mode === "review" && (
+              <div className="mt-2 flex flex-col gap-2">
+                {currentQuestion.children.map((child, index) => (
+                  <ExplanationCard
+                    key={child.id}
+                    correctAnswerText={`${TRUE_FALSE_LABELS[index] ?? index + 1}. ${formatCorrectAnswer(child.correct_answer) ?? ""}`}
+                    explanation={child.explanation}
+                    explanationBlocks={child.explanation_blocks}
+                  />
+                ))}
+              </div>
             )}
-          />
+          </>
         )}
 
         {currentQuestion.type === "short_answer" && (
@@ -1422,16 +1450,20 @@ export default function AttemptPage() {
             value={answers[currentQuestion.id] || ""}
             onChange={(value) => handleAnswer(currentQuestion.id, value)}
             mode={mode}
-            correctAnswer={currentQuestion.correct_answer}
+            correctAnswer={currentQuestion.correct_answer ?? undefined}
           />
         )}
 
-        {mode === "review" && (
+        {mode === "review" &&
+          (currentQuestion.type !== "cluster_context" ||
+            currentQuestion.explanation ||
+            (currentQuestion.explanation_blocks?.length ?? 0) > 0) && (
           <ExplanationCard
-            correctAnswerText={currentQuestion.correct_answer}
+            correctAnswerText={formatCorrectAnswer(currentQuestion.correct_answer)}
             explanation={
               currentQuestion.explanation || "Lời giải chi tiết cho câu hỏi này chưa có sẳn."
             }
+            explanationBlocks={currentQuestion.explanation_blocks}
           />
         )}
       </Question>

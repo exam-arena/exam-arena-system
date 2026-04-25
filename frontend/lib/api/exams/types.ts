@@ -1,5 +1,7 @@
 
 
+import type { AttemptExplanationBlock } from "../attempts/types";
+
 export interface QuestionOption {
   id: string;
   text: string;
@@ -11,8 +13,9 @@ export interface QuestionRaw {
   content: string;
   image_url: string | null;
   options: QuestionOption[] | null;
-  correct_answer: string;
-  explanation: string;
+  correct_answer: string | null;
+  explanation?: string;
+  explanation_blocks?: AttemptExplanationBlock[];
   point: number;
   type: string;
   question_type: string;
