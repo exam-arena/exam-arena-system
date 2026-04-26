@@ -89,7 +89,7 @@ func GetUserByIdentifierWithContext(ctx context.Context, identifier string) (*mo
 	}
 
 	query := config.DB.WithContext(ctx).
-		Select("user_id", "username", "password", "fullname", "email", "role")
+		Select("user_id", "username", "password", "fullname", "email", "avatar_provider", "avatar_key", "avatar_url", "role")
 
 	normalizedIdentifier := strings.TrimSpace(identifier)
 	if strings.Contains(normalizedIdentifier, "@") {

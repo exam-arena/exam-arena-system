@@ -137,7 +137,7 @@ async function uploadAvatarToCloudinary(file: File): Promise<{
 }
 
 export default function ProfilePageClient() {
-  const { user, refreshUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const fallbackValues = useMemo(
     () => buildInitialValues(user?.fullname ?? "", user?.email ?? ""),
@@ -313,7 +313,7 @@ export default function ProfilePageClient() {
         buildUpdatePayload(formValues, provinceOptions, wardOptions)
       );
       setFormValues(mapProfileToFormValues(updatedProfile));
-      await refreshUser();
+      updateUser(updatedProfile);
       setIsEditing(false);
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
@@ -350,7 +350,7 @@ export default function ProfilePageClient() {
         avatar_url: uploadedAvatar.url,
       });
       setFormValues(mapProfileToFormValues(updatedProfile));
-      await refreshUser();
+      updateUser(updatedProfile);
       if (previewUrl && objectUrlFactory) {
         objectUrlFactory.revokeObjectURL(previewUrl);
       }
