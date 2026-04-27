@@ -5,6 +5,9 @@ backend/tmp/
 .cache/
 .cache/go-build/
 .env
+.env.*
+!.env.example
+!.env.*.example
 .DS_Store
 .agent/
 .gocache/
