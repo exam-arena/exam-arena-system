@@ -17,6 +17,7 @@ interface RawUser {
 }
 
 interface RawExam {
+  exam_id: string;
   title: string;
   type: string;
   duration: number;
@@ -101,7 +102,7 @@ export function mapAttemptResult(
       email: user.email,
       role: user.role,
     },
-    exam: { title: exam.title, type: exam.type },
+    exam: { id: exam.exam_id, title: exam.title, type: exam.type },
     room: { id: room.room_id, name: room.name },
     result: {
       score: attempt.marks ? attempt.marks.toString() : "8.0",
