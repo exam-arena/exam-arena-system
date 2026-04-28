@@ -191,6 +191,7 @@ type AttemptResultResponse struct {
 		Role     string `json:"role"`
 	} `json:"user"`
 	Exam struct {
+		ID    string `json:"id"`
 		Title string `json:"title"`
 		Type  string `json:"type"`
 	} `json:"exam"`
@@ -1609,6 +1610,7 @@ func GetAttemptResult(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		response.User.Fullname = attempt.Fullname
 		response.User.Email = attempt.Email
 		response.User.Role = attempt.Role
+		response.Exam.ID = attempt.ExamID
 		response.Exam.Title = attempt.ExamTitle
 		response.Exam.Type = attempt.ExamType
 		response.Room.ID = attempt.RoomID

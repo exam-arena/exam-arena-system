@@ -108,6 +108,7 @@ export interface AttemptResultData {
     role: string;
   };
   exam: {
+    id: string;
     title: string;
     type: string;
   };
