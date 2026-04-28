@@ -8,17 +8,53 @@ export type ExamCardProps = {
     title: string;
     type?: string;
     duration: number;
+    start_time?: string;
+    hasCompleted?: boolean;
     image?: string;
 };
+
+function usesExamWindow(examType: string): boolean {
+    const normalized = examType.trim().toLowerCase();
+    return normalized === "mock_test" || normalized === "official";
+}
+
+function isExamEnded(
+    examType: string,
+    startTime: string | undefined,
+    durationSeconds: number
+) {
+    if (!usesExamWindow(examType) || !startTime) {
+        return false;
+    }
+
+    const startAtMs = new Date(startTime).getTime();
+    if (Number.isNaN(startAtMs)) {
+        return false;
+    }
+
+    const endAtMs = startAtMs + Math.max(durationSeconds, 0) * 1000;
+    return Date.now() >= endAtMs;
+}
 
 export default function ExamCard({
     exam_id,
     title,
     type = "practice",
     duration,
+    start_time,
+    hasCompleted = false,
     image = "/carddethi.png",
 }: ExamCardProps) {
     const durationInMinutes = Math.floor(duration / 60);
+    const hasExamWindow = usesExamWindow(type);
+    const isCompleted = hasExamWindow && hasCompleted;
+    const isEnded = hasExamWindow && !isCompleted && isExamEnded(type, start_time, duration);
+    const isActionDisabled = isCompleted || isEnded;
+    const actionLabel = isCompleted
+        ? "Đã hoàn thành"
+        : isEnded
+            ? "Đã kết thúc"
+            : "Làm bài";
 
     return (
         <Card
@@ -49,21 +85,40 @@ export default function ExamCard({
                     {type === "practice" ? "Luyện tập" : "Thi thật"} | Thời gian: {durationInMinutes} phút
                 </p>
 
-                <Link href={`/exams/${exam_id}`} className="mt-auto inline-flex justify-center">
-                    <Button
-                        variant="outline"
-                        className="
-                            h-8 min-w-[5.75rem]
-                            rounded-full border-[#004EDC] text-[#004EDC]
-                            text-xs sm:text-sm
-                            px-3 sm:px-5
-                            hover:bg-[#004EDC] hover:text-white
-                            transition-colors
-                        "
-                    >
-                        Làm bài
-                    </Button>
-                </Link>
+                <div className="mt-auto inline-flex justify-center">
+                    {isActionDisabled ? (
+                        <Button
+                            variant="outline"
+                            disabled
+                            className="
+                                h-8 min-w-[5.75rem]
+                                rounded-full border-[#004EDC] text-[#004EDC]
+                                text-xs sm:text-sm
+                                px-3 sm:px-5
+                                disabled:cursor-not-allowed disabled:border-[#EAF2FF]
+                                disabled:text-[#92B8FF] disabled:opacity-100
+                            "
+                        >
+                            {actionLabel}
+                        </Button>
+                    ) : (
+                        <Link href={`/exams/${exam_id}`}>
+                            <Button
+                                variant="outline"
+                                className="
+                                    h-8 min-w-[5.75rem]
+                                    rounded-full border-[#004EDC] text-[#004EDC]
+                                    text-xs sm:text-sm
+                                    px-3 sm:px-5
+                                    hover:bg-[#004EDC] hover:text-white
+                                    transition-colors
+                                "
+                            >
+                                {actionLabel}
+                            </Button>
+                        </Link>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
