@@ -4,7 +4,9 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"backend/middleware"
 	"backend/services"
 	"backend/utils"
 )
@@ -49,6 +51,44 @@ func GetLatestExams(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Cache-Control", "public, max-age=30, stale-while-revalidate=120")
 	utils.SendJSONBytes(w, http.StatusOK, payload)
+}
+
+func GetExamCompletion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
+		return
+	}
+
+	userID, ok := middleware.UserID(r)
+	if !ok {
+		utils.SendError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		return
+	}
+
+	idsParam := strings.TrimSpace(r.URL.Query().Get("ids"))
+	var examIDs []string
+	if idsParam != "" {
+		examIDs = strings.Split(idsParam, ",")
+	}
+
+	response, err := services.GetExamCompletion(r.Context(), services.GetExamCompletionInput{
+		UserID:  userID.String(),
+		ExamIDs: examIDs,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidExamIDs):
+			utils.SendError(w, http.StatusBadRequest, "INVALID_EXAM_IDS", "Exam IDs are invalid")
+		case errors.Is(err, services.ErrTooManyExamIDs):
+			utils.SendError(w, http.StatusBadRequest, "TOO_MANY_EXAM_IDS", "Too many exam IDs")
+		default:
+			utils.SendError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred")
+		}
+		return
+	}
+
+	w.Header().Set("Cache-Control", "private, no-store")
+	utils.SendSuccess(w, response)
 }
 
 func GetExamByID(w http.ResponseWriter, r *http.Request) {

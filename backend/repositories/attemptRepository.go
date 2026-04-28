@@ -137,6 +137,8 @@ type AttemptResultBaseRow struct {
 	ExamID    string
 	ExamTitle string
 	ExamType  string
+	Duration  int
+	StartTime *time.Time
 	RoomID    string
 	RoomName  string
 	Username  string
@@ -1079,6 +1081,8 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 			e.exam_id,
 			e.title AS exam_title,
 			e.type AS exam_type,
+			e.duration,
+			e.start_time,
 			r.room_id,
 			r.name AS room_name,
 			u.username,
