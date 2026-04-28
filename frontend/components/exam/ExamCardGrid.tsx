@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ExamCard from "@/components/exam/ExamCard";
 import { ApiError } from "@/lib/api/client";
 import { getExamCompletion, type ExamCompletionMap } from "@/lib/api/exams/completion";
+import { useAuth } from "@/lib/auth/hooks";
 import type { ExamRaw } from "@/lib/api/exams/types";
 
 type ExamCardGridProps = {
@@ -23,20 +24,27 @@ export default function ExamCardGrid({
     image,
     visibilityMode,
 }: ExamCardGridProps) {
+    const { user, isLoading: isAuthLoading } = useAuth();
     const [completion, setCompletion] = useState<ExamCompletionMap>({});
 
     const examIds = useMemo(() => exams.map((exam) => exam.exam_id), [exams]);
     const completionKey = useMemo(() => examIds.join(","), [examIds]);
+    const canFetchCompletion = !!user && !isAuthLoading;
+    const visibleCompletion = canFetchCompletion ? completion : {};
 
     const fetchCompletion = useCallback(async () => {
-        if (examIds.length === 0) {
+        if (!canFetchCompletion || examIds.length === 0) {
             return {};
         }
 
         return getExamCompletion(examIds);
-    }, [examIds]);
+    }, [canFetchCompletion, examIds]);
 
     useEffect(() => {
+        if (!canFetchCompletion) {
+            return;
+        }
+
         let cancelled = false;
 
         fetchCompletion()
@@ -54,9 +62,13 @@ export default function ExamCardGrid({
         return () => {
             cancelled = true;
         };
-    }, [completionKey, fetchCompletion]);
+    }, [canFetchCompletion, completionKey, fetchCompletion]);
 
     useEffect(() => {
+        if (!canFetchCompletion) {
+            return;
+        }
+
         const handleFocus = () => {
             fetchCompletion()
                 .then(setCompletion)
@@ -69,7 +81,7 @@ export default function ExamCardGrid({
 
         window.addEventListener("focus", handleFocus);
         return () => window.removeEventListener("focus", handleFocus);
-    }, [fetchCompletion]);
+    }, [canFetchCompletion, fetchCompletion]);
 
     if (exams.length === 0) {
         return (
@@ -97,7 +109,8 @@ export default function ExamCardGrid({
                     <ExamCard
                         {...exam}
                         image={image}
-                        hasCompleted={completion[exam.exam_id] === true}
+                        hasCompleted={visibleCompletion[exam.exam_id] === true}
+                        showStatus={canFetchCompletion}
                     />
                 </div>
             ))}
