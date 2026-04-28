@@ -213,3 +213,31 @@ func ListLatestExamSummaries(ctx context.Context, limit int) ([]ExamListRow, err
 
 	return rows, nil
 }
+
+func ListCompletedExamIDs(ctx context.Context, userID string, examIDs []string) ([]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	rows := make([]string, 0)
+	if len(examIDs) == 0 {
+		return rows, nil
+	}
+
+	err := config.DB.WithContext(ctx).Raw(`
+		SELECT DISTINCT ea.exam_id
+		FROM exam_attempt ea
+		JOIN exam e
+		  ON e.exam_id = ea.exam_id
+		 AND e.deleted_at IS NULL
+		 AND e.type IN ('mock_test', 'official')
+		WHERE ea.user_id = ?
+		  AND ea.status = 'submitted'
+		  AND ea.exam_id IN ?
+	`, userID, examIDs).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+}

@@ -1,5 +1,5 @@
 
-import ExamCard from "@/components/exam/ExamCard";
+import ExamCardGrid from "@/components/exam/ExamCardGrid";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getLatestExams } from '@/lib/api/exams/api';
@@ -31,15 +31,11 @@ export default async function NewExam() {
 
                 {/* Grid wrapper */}
                 <div className="max-w-312 mx-auto">
-                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 lg:gap-8">
-                        {displayExams.map((exam, index) => (
-                            <div
-                                key={exam.exam_id}
-                                className={index >= 6 ? "hidden lg:block" : index >= 4 ? "hidden md:block" : ""}>
-                                <ExamCard {...exam} />
-                            </div>
-                        ))}
-                    </div>
+                    <ExamCardGrid
+                        exams={displayExams}
+                        gridClassName="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 lg:gap-8"
+                        visibilityMode="latest"
+                    />
                 </div>
 
                 {/* Button */}
