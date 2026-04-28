@@ -11,6 +11,7 @@ import {
 import {
     resolveDialogMode,
     type ExamStartDialogMode,
+    usesExamWindow,
 } from "@/components/exam/StartExamDialog";
 
 export type RoomExamCardProps = {
@@ -63,23 +64,29 @@ export default function RoomExamCard({
 
     const durationInMinutes = Math.floor(duration / 60);
     const typeLabel = type === "practice" ? "Luyện tập" : "Thi thật";
+    const hasExamWindow = usesExamWindow(type);
+    const resolvedMode = resolveDialogMode(type, start_time, duration);
+    const isCompleted = hasExamWindow && has_completed;
+    const isEnded = hasExamWindow && !isCompleted && resolvedMode === "ended";
+    const isActionDisabled = isCompleted || isEnded;
+    const actionLabel = isCompleted
+        ? "Đã hoàn thành"
+        : isEnded
+            ? "Đã kết thúc"
+            : "Làm bài";
     const { title: dialogTitle, description } = getDialogCopy(dialogMode);
 
     const handleActionClick = () => {
-        if (has_completed && type !== "practice") {
-            setDialogMode("completed");
-            setOpen(true);
+        if (isActionDisabled) {
             return;
         }
 
-        const mode = resolveDialogMode(type, start_time, duration);
-
-        if (mode === "ready") {
+        if (resolvedMode === "ready") {
             router.push(`/exams/${exam_id}`);
             return;
         }
 
-        setDialogMode(mode);
+        setDialogMode(resolvedMode);
         setOpen(true);
     };
 
@@ -108,9 +115,10 @@ export default function RoomExamCard({
                     <button
                         type="button"
                         onClick={handleActionClick}
-                        className="w-full flex justify-center items-center rounded-full bg-white border border-[#EAF2FF] hover:border-[#004EDC] hover:bg-[#F6FBFF] text-[#004EDC] font-bold py-2 px-4 transition-colors"
+                        disabled={isActionDisabled}
+                        className="w-full flex justify-center items-center rounded-full bg-white border border-[#EAF2FF] hover:border-[#004EDC] hover:bg-[#F6FBFF] text-[#004EDC] font-bold py-2 px-4 transition-colors disabled:cursor-not-allowed disabled:border-[#EAF2FF] disabled:text-[#92B8FF] disabled:hover:bg-white"
                     >
-                        Làm bài
+                        {actionLabel}
                     </button>
                 </div>
             </div>
