@@ -10,6 +10,7 @@ export type ExamCardProps = {
     duration: number;
     start_time?: string;
     hasCompleted?: boolean;
+    showStatus?: boolean;
     image?: string;
 };
 
@@ -43,10 +44,11 @@ export default function ExamCard({
     duration,
     start_time,
     hasCompleted = false,
+    showStatus = true,
     image = "/carddethi.png",
 }: ExamCardProps) {
     const durationInMinutes = Math.floor(duration / 60);
-    const hasExamWindow = usesExamWindow(type);
+    const hasExamWindow = showStatus && usesExamWindow(type);
     const isCompleted = hasExamWindow && hasCompleted;
     const isEnded = hasExamWindow && !isCompleted && isExamEnded(type, start_time, duration);
     const isActionDisabled = isCompleted || isEnded;
