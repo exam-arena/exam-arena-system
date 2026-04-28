@@ -134,6 +134,7 @@ type AttemptResultBaseRow struct {
 	UserID    string
 	Status    string
 	Marks     string
+	ExamID    string
 	ExamTitle string
 	ExamType  string
 	RoomID    string
@@ -1075,6 +1076,7 @@ func GetAttemptResultBase(ctx context.Context, attemptID string) (*AttemptResult
 			a.user_id,
 			a.status,
 			COALESCE(a.marks::text, '0') AS marks,
+			e.exam_id,
 			e.title AS exam_title,
 			e.type AS exam_type,
 			r.room_id,
