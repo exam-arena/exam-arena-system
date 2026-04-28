@@ -24,7 +24,8 @@ export default function ExamCard({
         <Card
             className="
                 rounded-2xl sm:rounded-3xl overflow-hidden
-                border-none shadow-md p-0 group
+                border-none shadow-md p-0 group h-full
+                flex flex-col
                 transition-shadow hover:shadow-lg
             "
         >
@@ -39,22 +40,23 @@ export default function ExamCard({
             </div>
 
             {/* Content */}
-            <CardContent className="px-3 py-3 sm:px-4 sm:py-4 md:p-5 bg-white text-center">
-                <h3 className="text-sm sm:text-base font-bold text-[#004EDC] mb-1 sm:mb-2 line-clamp-2">
+            <CardContent className="flex flex-1 flex-col px-3 py-3 sm:px-4 sm:py-4 md:p-5 bg-white text-center">
+                <h3 className="min-h-10 text-sm sm:text-base font-bold text-[#004EDC] mb-1 sm:mb-2 line-clamp-2 leading-tight">
                     {title}
                 </h3>
 
-                <p className="text-[11px] sm:text-xs text-[#92B8FF] mb-2 sm:mb-3">
+                <p className="min-h-4 text-[11px] sm:text-xs text-[#92B8FF] mb-2 sm:mb-3 whitespace-nowrap">
                     {type === "practice" ? "Luyện tập" : "Thi thật"} | Thời gian: {durationInMinutes} phút
                 </p>
 
-                <Link href={`/exams/${exam_id}`}>
+                <Link href={`/exams/${exam_id}`} className="mt-auto inline-flex justify-center">
                     <Button
                         variant="outline"
                         className="
+                            h-8 min-w-[5.75rem]
                             rounded-full border-[#004EDC] text-[#004EDC]
                             text-xs sm:text-sm
-                            px-3 py-1 sm:px-5 sm:py-1.5
+                            px-3 sm:px-5
                             hover:bg-[#004EDC] hover:text-white
                             transition-colors
                         "
