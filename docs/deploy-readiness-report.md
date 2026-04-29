@@ -353,3 +353,44 @@ Current Step 7 gate:
 - Do not update seed/data URLs yet because no real CloudFront base URL and no real local-file mapping have been provided.
 - Media gate remains blocked until real exam image files are uploaded, CloudFront URLs are verified, and seed/data references are replaced or set to `NULL`.
 - Avatar migration is intentionally out of scope for beta unless explicitly prioritized; Cloudinary may remain for avatars.
+
+## Step 8 Progress
+
+Completed in Step 8:
+
+- Added media delivery decision record: `docs/media-delivery-decision.md`.
+- Added production deploy runbook: `docs/production-deploy-runbook.md`.
+- Added beta Go/No-Go checklist: `docs/beta-go-no-go-checklist.md`.
+- Recorded that CloudFront pending does not block app/runtime deployment, but keeps media delivery at `PARTIAL PASS`.
+
+Current Step 8 gate:
+
+- App deployment preparation can proceed independently from CloudFront verification.
+- Final exam Go/No-Go still requires media delivery to become either CloudFront verified, S3 direct fallback accepted and verified, or explicitly not needed for the exam.
+- Compose config checks pass for `.env.staging` and `.env.production.example`.
+- `.env` and `.env.staging` are ignored by git; only example env files are tracked.
+- Secret hygiene scan of tracked files found only existing example/docs placeholders, not live `.env.staging` values. Re-run before final commit/deploy if docs change.
+
+## Step 9 Progress
+
+Completed in Step 9:
+
+- Chose the final beta deployment shape for 2026-05-17: AWS EC2, Elastic IP, Caddy HTTPS reverse proxy, Docker Compose, Neon PostgreSQL, Redis container, S3 media, and optional CloudFront.
+- Added EC2 compose override: `docker-compose.ec2.yml`.
+- Added Caddy example config: `deploy/Caddyfile.example`.
+- Added EC2 production host runbook: `docs/aws-ec2-production-runbook.md`.
+- Updated production deploy commands to include the EC2 override.
+- Updated `.env.production.example` to use the final beta domains:
+  - `https://examarena.id.vn`
+  - `https://api.examarena.id.vn`
+- Recorded that RDS, ElastiCache, ALB, ECS, and Fargate are deferred until after the beta unless the EC2 rehearsal fails.
+
+Verification after Step 9:
+
+- `docker compose --env-file .env.production.example -f docker-compose.prod.yml -f docker-compose.ec2.yml config` renders successfully.
+
+Current Step 9 gate:
+
+- Documentation and local deployment config are ready for EC2 production host setup.
+- No AWS resource has been created by this step.
+- Do not admit users until the EC2 host is created, DNS resolves, HTTPS is active, `/healthz` and `/readyz` pass publicly, and the smoke flow passes against `https://api.examarena.id.vn`.
