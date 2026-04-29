@@ -1,0 +1,15 @@
+services:
+  backend:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      redis:
+        condition: service_started
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:3000:3000"
+
+  redis:
+    image: redis:7
+    restart: unless-stopped

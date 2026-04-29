@@ -37,8 +37,8 @@ notepad .env.staging
 Minimum values to verify:
 
 ```text
-DATABASE_URL=...
-JWT_SECRET=...
+DATABASE_URL=<staging-neon-url>
+JWT_SECRET=<strong-random-secret>
 REDIS_URL=redis://redis:6379/0
 ALLOWED_ORIGINS=https://staging.example.com
 COOKIE_SECURE=true
