@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"backend/middleware"
@@ -164,6 +165,7 @@ func clearAuthCookie(w http.ResponseWriter, r *http.Request) {
 func buildAuthCookie(r *http.Request) *http.Cookie {
 	sameSite := http.SameSiteLaxMode
 	secure := r.TLS != nil
+	domain := strings.TrimSpace(os.Getenv("COOKIE_DOMAIN"))
 
 	if raw := os.Getenv("COOKIE_SECURE"); raw != "" {
 		if v, err := strconv.ParseBool(raw); err == nil {
@@ -174,6 +176,7 @@ func buildAuthCookie(r *http.Request) *http.Cookie {
 	return &http.Cookie{
 		Name:     "access_token",
 		Path:     "/",
+		Domain:   domain,
 		HttpOnly: true,
 		SameSite: sameSite,
 		Secure:   secure,
