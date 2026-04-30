@@ -284,3 +284,8 @@ ON attempt_detail(question_id);
 
 CREATE UNIQUE INDEX uq_attempt_detail_log_question
 ON attempt_detail(log_id, question_id);
+
+
+CREATE INDEX idx_exam_attempt_submitted_user_exam
+ON exam_attempt(user_id, exam_id)
+WHERE status = 'submitted';

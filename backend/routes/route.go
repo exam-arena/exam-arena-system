@@ -25,6 +25,7 @@ func SetupRoutes() {
 	http.HandleFunc("POST /api/v1/rooms/{roomId}/join", middleware.RequireAuth(middleware.JoinRoomRateLimit(handlers.JoinRoom)))
 	http.HandleFunc("GET /api/v1/exams", middleware.GetExamsRateLimit(handlers.GetExams))
 	http.HandleFunc("GET /api/v1/exams/latest", middleware.GetLatestExamsRateLimit(handlers.GetLatestExams))
+	http.HandleFunc("GET /api/v1/exams/completion", middleware.RequireAuth(middleware.GetExamsRateLimit(handlers.GetExamCompletion)))
 	http.HandleFunc("GET /api/v1/exams/{examId}", middleware.GetExamRateLimit(handlers.GetExamByID))
 	http.HandleFunc("POST /api/v1/exams/{examId}/attempts", middleware.RequireAuth(middleware.StartAttemptRateLimit(handlers.StartAttempt)))
 	http.HandleFunc("GET /api/v1/attempts/history", middleware.RequireAuth(middleware.GetAttemptHistoryRateLimit(handlers.GetAttemptHistory)))
