@@ -13,6 +13,7 @@ import (
 	"backend/repositories"
 	"backend/utils"
 
+	"github.com/google/uuid"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -27,12 +28,15 @@ const defaultLatestExamLimit = 8
 const maxLatestExamLimit = 20
 const latestExamCacheTTL = 60 * time.Second
 const latestExamPayloadCacheTTL = 60 * time.Second
+const maxExamCompletionIDs = 50
 
 var (
-	ErrExamNotFound  = errors.New("exam not found")
-	examSummaryGroup singleflight.Group
-	examListGroup    singleflight.Group
-	latestExamGroup  singleflight.Group
+	ErrExamNotFound   = errors.New("exam not found")
+	ErrInvalidExamIDs = errors.New("invalid exam ids")
+	ErrTooManyExamIDs = errors.New("too many exam ids")
+	examSummaryGroup  singleflight.Group
+	examListGroup     singleflight.Group
+	latestExamGroup   singleflight.Group
 )
 
 type GetExamSummaryInput struct {
@@ -46,6 +50,11 @@ type GetExamListInput struct {
 
 type GetLatestExamsInput struct {
 	Limit int
+}
+
+type GetExamCompletionInput struct {
+	UserID  string
+	ExamIDs []string
 }
 
 type ExamSummaryResponse struct {
@@ -91,6 +100,10 @@ func GetExamList(ctx context.Context, input GetExamListInput) (*ExamListResponse
 
 func GetLatestExams(ctx context.Context, input GetLatestExamsInput) ([]ExamListItemResponse, error) {
 	return buildLatestExamsResponse(ctx, input)
+}
+
+func GetExamCompletion(ctx context.Context, input GetExamCompletionInput) (map[string]bool, error) {
+	return buildExamCompletionResponse(ctx, input)
 }
 
 func GetExamListPayload(ctx context.Context, input GetExamListInput) ([]byte, error) {
@@ -327,6 +340,37 @@ func normalizeLatestExamLimit(limit int) int {
 	return limit
 }
 
+func normalizeExamCompletionIDs(examIDs []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(examIDs))
+	normalized := make([]string, 0, len(examIDs))
+
+	for _, rawID := range examIDs {
+		id := strings.TrimSpace(rawID)
+		if id == "" {
+			continue
+		}
+
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, ErrInvalidExamIDs
+		}
+
+		value := parsed.String()
+		if _, ok := seen[value]; ok {
+			continue
+		}
+
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+
+	if len(normalized) > maxExamCompletionIDs {
+		return nil, ErrTooManyExamIDs
+	}
+
+	return normalized, nil
+}
+
 func buildExamListResponse(ctx context.Context, input GetExamListInput) (*ExamListResponse, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -417,6 +461,36 @@ func buildLatestExamsResponse(ctx context.Context, input GetLatestExamsInput) ([
 
 	cacheLatestExams(ctx, cacheKey, items)
 	return items, nil
+}
+
+func buildExamCompletionResponse(ctx context.Context, input GetExamCompletionInput) (map[string]bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	examIDs, err := normalizeExamCompletionIDs(input.ExamIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]bool, len(examIDs))
+	for _, examID := range examIDs {
+		result[examID] = false
+	}
+	if len(examIDs) == 0 {
+		return result, nil
+	}
+
+	completedIDs, err := repositories.ListCompletedExamIDs(ctx, strings.TrimSpace(input.UserID), examIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, examID := range completedIDs {
+		result[examID] = true
+	}
+
+	return result, nil
 }
 
 func getCachedExamSummary(ctx context.Context, cacheKey string) *ExamSummaryResponse {

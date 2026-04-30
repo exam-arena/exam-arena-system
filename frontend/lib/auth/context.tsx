@@ -25,11 +25,23 @@ export interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  hasSession = true,
+}: {
+  children: ReactNode;
+  hasSession?: boolean;
+}) {
   const [user, setUser] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(hasSession);
 
   useEffect(() => {
+    if (!hasSession) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
     const loadUser = async () => {
       try {
@@ -47,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasSession]);
 
   const login = useCallback(
     async (identifier: string, password: string) => {

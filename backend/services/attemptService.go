@@ -191,9 +191,11 @@ type AttemptResultResponse struct {
 		Role     string `json:"role"`
 	} `json:"user"`
 	Exam struct {
-		ID    string `json:"id"`
-		Title string `json:"title"`
-		Type  string `json:"type"`
+		ID        string     `json:"id"`
+		Title     string     `json:"title"`
+		Type      string     `json:"type"`
+		Duration  int        `json:"duration"`
+		StartTime *time.Time `json:"start_time,omitempty"`
 	} `json:"exam"`
 	Room struct {
 		ID   string `json:"id"`
@@ -1613,6 +1615,8 @@ func GetAttemptResult(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		response.Exam.ID = attempt.ExamID
 		response.Exam.Title = attempt.ExamTitle
 		response.Exam.Type = attempt.ExamType
+		response.Exam.Duration = attempt.Duration
+		response.Exam.StartTime = attempt.StartTime
 		response.Room.ID = attempt.RoomID
 		response.Room.Name = attempt.RoomName
 		response.Result.Score = formatResultScore(score)
@@ -2283,6 +2287,9 @@ func loadAttemptResultFromCache(ctx context.Context, cacheKey string) (*AttemptR
 		return nil, false
 	}
 	if result.Exam.Title == "" {
+		return nil, false
+	}
+	if usesExamWindow(result.Exam.Type) && result.Exam.Duration <= 0 {
 		return nil, false
 	}
 

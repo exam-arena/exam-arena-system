@@ -111,6 +111,8 @@ export interface AttemptResultData {
     id: string;
     title: string;
     type: string;
+    duration: number;
+    start_time?: string;
   };
   room: {
     id: string;
