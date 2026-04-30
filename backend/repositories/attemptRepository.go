@@ -96,6 +96,9 @@ type SaveAttemptAnswersResult struct {
 	AttemptExists bool
 	IsOwner       bool
 	CanWrite      bool
+	PayloadCount  int
+	ResolvedCount int
+	UpsertedCount int
 	Rows          []SaveAttemptAnswerRow
 }
 
@@ -570,7 +573,10 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 		AttemptExists bool
 		IsOwner       bool
 		CanWrite      bool
-		SavedRowsRaw  []byte
+		PayloadCount  int
+		ResolvedCount int
+		UpsertedCount int
+		SavedRowsRaw  string
 	}
 	err = config.DB.WithContext(ctx).Raw(`
 		WITH attempt_guard AS (
@@ -655,7 +661,7 @@ func ApplyAttemptAnswerChangesAuthorized(ctx context.Context, attemptID, userID 
 
 	savedRows := make([]SaveAttemptAnswerRow, 0, len(rows))
 	if len(queryResult.SavedRowsRaw) > 0 {
-		if err := json.Unmarshal(queryResult.SavedRowsRaw, &savedRows); err != nil {
+		if err := json.Unmarshal([]byte(queryResult.SavedRowsRaw), &savedRows); err != nil {
 			return nil, err
 		}
 	}
@@ -736,7 +742,10 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 		AttemptExists bool
 		IsOwner       bool
 		CanWrite      bool
-		SavedRowsRaw  []byte
+		PayloadCount  int
+		ResolvedCount int
+		UpsertedCount int
+		SavedRowsRaw  string
 	}
 	err = config.DB.WithContext(ctx).Raw(`
 		WITH attempt_guard AS (
@@ -755,7 +764,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 			FROM attempt_guard
 			WHERE user_id = ?::uuid
 			  AND (
-				(status = 'in_progress' AND CURRENT_TIMESTAMP < expires_at)
+				(status = 'in_progress' AND (CURRENT_TIMESTAMP < expires_at OR ?::boolean))
 				OR (?::boolean AND status = 'submitted')
 			  )
 		),
@@ -764,6 +773,9 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				question_id::uuid AS question_id,
 				selected_ans::text AS selected_ans
 			FROM jsonb_to_recordset(?::jsonb) AS p(question_id text, selected_ans text)
+		),
+		payload_count AS (
+			SELECT COUNT(*)::int AS value FROM payload
 		),
 		question_sections AS (
 			SELECT DISTINCT
@@ -804,6 +816,9 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 			JOIN attempt_section_log asl
 			  ON asl.attempt_id = wg.attempt_id
 			 AND asl.section_id = q.section_id
+		),
+		resolved_count AS (
+			SELECT COUNT(*)::int AS value FROM resolved
 		),
 		resolved_with_existing AS (
 			SELECT
@@ -848,6 +863,9 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				question_id,
 				selected_ans
 		),
+		upserted_count AS (
+			SELECT COUNT(*)::int AS value FROM upserted
+		),
 		result_rows AS (
 			SELECT
 				question_id,
@@ -861,7 +879,7 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				(
 					SELECT
 						(
-							(status = 'in_progress' AND CURRENT_TIMESTAMP < expires_at)
+							(status = 'in_progress' AND (CURRENT_TIMESTAMP < expires_at OR ?::boolean))
 							OR (?::boolean AND status = 'submitted')
 						)
 						AND user_id = ?::uuid
@@ -869,6 +887,9 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				),
 				FALSE
 			) AS can_write,
+			COALESCE((SELECT value FROM payload_count), 0) AS payload_count,
+			COALESCE((SELECT value FROM resolved_count), 0) AS resolved_count,
+			COALESCE((SELECT value FROM upserted_count), 0) AS upserted_count,
 			COALESCE(
 				json_agg(
 					json_build_object(
@@ -879,14 +900,14 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 				'[]'::json
 			)::text AS saved_rows_raw
 		FROM result_rows
-	`, attemptID, userID, allowPostSubmitFlush, string(payload), userID, allowPostSubmitFlush, userID).Scan(&queryResult).Error
+	`, attemptID, userID, allowPostSubmitFlush, allowPostSubmitFlush, string(payload), userID, allowPostSubmitFlush, allowPostSubmitFlush, userID).Scan(&queryResult).Error
 	if err != nil {
 		return nil, err
 	}
 
 	rows := make([]SaveAttemptAnswerRow, 0, len(answers))
 	if len(queryResult.SavedRowsRaw) > 0 {
-		if err := json.Unmarshal(queryResult.SavedRowsRaw, &rows); err != nil {
+		if err := json.Unmarshal([]byte(queryResult.SavedRowsRaw), &rows); err != nil {
 			return nil, err
 		}
 	}
@@ -895,6 +916,9 @@ func UpsertAttemptAnswersAuthorized(ctx context.Context, attemptID, userID strin
 		AttemptExists: queryResult.AttemptExists,
 		IsOwner:       queryResult.IsOwner,
 		CanWrite:      queryResult.CanWrite,
+		PayloadCount:  queryResult.PayloadCount,
+		ResolvedCount: queryResult.ResolvedCount,
+		UpsertedCount: queryResult.UpsertedCount,
 		Rows:          rows,
 	}, nil
 }
