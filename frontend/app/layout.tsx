@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono, Roboto } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -23,15 +24,17 @@ export const metadata: Metadata = {
   description: "Exam Arena",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const hasSession = (await cookies()).has("access_token");
+
   return (
     <html lang="en" className={cn("font-sans", roboto.variable)}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>
+        <AuthProvider hasSession={hasSession}>
           <RoomAccessProvider>
             {children}
             <Toaster richColors position="top-right" />
