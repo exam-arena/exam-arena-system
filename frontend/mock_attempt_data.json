@@ -1,0 +1,19 @@
+{
+  "status": "success",
+  "message": "Lấy dữ liệu kết quả thi thành công",
+  "data": {
+    "attempt_id": "attempt-123",
+    "exam_id": "exam-thpt-math-2026-001",
+    "user_answers": {
+      "q-part1-001": "B",
+      "q-part1-002": "A",
+      "q-part2-child-a": "True",
+      "q-part2-child-b": "True",
+      "q-part2-child-c": "False",
+      "q-part3-001": "10.7",
+      "q-part3-002": "5"
+    },
+    "score": 8.0,
+    "max_score": 10.0
+  }
+}

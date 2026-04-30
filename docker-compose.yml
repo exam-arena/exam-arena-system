@@ -1,55 +1,45 @@
-version: '3.8'
-
 services:
-  # 1. Frontend Next.js
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
+    environment:
+      API_INTERNAL_URL: http://backend:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+    env_file:
+      - .env
     depends_on:
       - backend
 
-  # 2. Backend Golang (Có Live-reload với công cụ Air)
   backend:
     build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://redis:6379/0
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_AVATAR_FOLDER: ${CLOUDINARY_AVATAR_FOLDER}
     ports:
       - "8080:8080"
     volumes:
       - ./backend:/app
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=admin
-      - DB_NAME=mock_exam
+    env_file:
+      - .env
     depends_on:
-      - postgres
+      - redis
 
-  # 3. Database PostgreSQL
-  postgres:
-    image: postgres:15-alpine
+  redis:
+    image: redis:7
     ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=admin
-      - POSTGRES_DB=mock_exam
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  # 4. Giao diện quản lý Database (pgAdmin)
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - "5050:80"
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@mockexam.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
-    depends_on:
-      - postgres
+      - "6379:6379"
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  frontend_node_modules:
+  frontend_next:
