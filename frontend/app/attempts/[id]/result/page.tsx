@@ -14,6 +14,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getAttemptResult, getAttemptReview } from "@/lib/api/attempts/api";
 import type {
   AttemptProcessingData,
@@ -34,6 +40,7 @@ export default function ExamResultPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reviewNoticeOpen, setReviewNoticeOpen] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -145,6 +152,8 @@ export default function ExamResultPage() {
 
   const { user, exam, room, result } = data;
   const detailSections = buildDetailSections(reviewData);
+  const canRetryExam = !usesExamWindow(exam.type);
+  const shouldBlockReview = isExamWindowStillOpen(exam.type, exam.start_time, exam.duration);
 
   return (
     <main className="min-h-screen bg-white flex flex-col w-full font-roboto">
@@ -201,12 +210,22 @@ export default function ExamResultPage() {
                   <div className="rounded-num-30 border border-transparent bg-[#e7f0ff] text-[#0050e2] py-2 px-5 text-[1rem] leading-7 font-bold flex items-center justify-center">
                     Kết quả Đề thi
                   </div>
-                  <Link
-                    href={`/attempts/${id}/review`}
-                    className="rounded-num-30 border border-cornflowerblue-100 bg-white text-cornflowerblue-100 hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-2 px-5 text-[1rem] leading-7 font-normal flex items-center justify-center"
-                  >
-                    Đáp án tham khảo
-                  </Link>
+                  {shouldBlockReview ? (
+                    <button
+                      type="button"
+                      onClick={() => setReviewNoticeOpen(true)}
+                      className="rounded-num-30 border border-cornflowerblue-100 bg-white text-cornflowerblue-100 hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-2 px-5 text-[1rem] leading-7 font-normal flex items-center justify-center"
+                    >
+                      Đáp án tham khảo
+                    </button>
+                  ) : (
+                    <Link
+                      href={`/attempts/${id}/review`}
+                      className="rounded-num-30 border border-cornflowerblue-100 bg-white text-cornflowerblue-100 hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-2 px-5 text-[1rem] leading-7 font-normal flex items-center justify-center"
+                    >
+                      Đáp án tham khảo
+                    </Link>
+                  )}
                   <Link
                     href="/history"
                     className="rounded-num-30 border border-cornflowerblue-100 bg-white text-cornflowerblue-100 hover:bg-[#F6FBFF] hover:border-[#0050e2] hover:text-[#0050e2] transition-colors py-2 px-5 text-[1rem] leading-7 font-normal flex items-center justify-center"
@@ -248,12 +267,14 @@ export default function ExamResultPage() {
               </div>
 
               <div className="grid w-[min(100%,25.5rem)] grid-cols-2 gap-2 mt-2 sm:gap-3">
-                <Link
-                  href={`/exams/${exam.id}`}
-                  className="rounded-num-30 bg-mediumslateblue border-mediumslateblue border-solid border hover:bg-[#003bb0] overflow-hidden flex items-center justify-center py-2 px-3 text-white transition-colors sm:px-4"
-                >
-                  <div className="relative text-center text-[0.875rem] font-bold sm:text-[1rem]">Làm lại bài thi</div>
-                </Link>
+                {canRetryExam ? (
+                  <Link
+                    href={`/exams/${exam.id}`}
+                    className="rounded-num-30 bg-mediumslateblue border-mediumslateblue border-solid border hover:bg-[#003bb0] overflow-hidden flex items-center justify-center py-2 px-3 text-white transition-colors sm:px-4"
+                  >
+                    <div className="relative text-center text-[0.875rem] font-bold sm:text-[1rem]">Làm lại bài thi</div>
+                  </Link>
+                ) : null}
                 <Link
                   href={`/rooms/${room.id}`}
                   className="rounded-num-30 bg-white border-cornflowerblue-100 border-solid border hover:border-[#0050e2] hover:text-[#0050e2] overflow-hidden flex items-center justify-center py-2 px-3 text-cornflowerblue-100 transition-colors sm:px-4"
@@ -313,6 +334,29 @@ export default function ExamResultPage() {
 
       <Banner />
       <Footer />
+      <Dialog open={reviewNoticeOpen} onOpenChange={setReviewNoticeOpen}>
+        <DialogContent className="sm:max-w-lg rounded-num-30 border-none bg-white p-8 text-center shadow-[0px_2px_8px_rgba(146,184,255,0.2)] outline-none sm:p-12">
+          <DialogHeader className="w-full flex flex-col items-center">
+            <DialogTitle className="text-[1.25rem] font-bold leading-6 text-[#004EDC] sm:text-2xl">
+              Chưa thể xem đáp án
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-2 flex flex-col items-center justify-center gap-1 text-[1rem] leading-6 text-[#004EDC] opacity-80">
+            <span>Khi hết thời gian, vào lịch sử thi để xem đáp án.</span>
+          </div>
+
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setReviewNoticeOpen(false)}
+              className="rounded-num-30 bg-[#004EDC] px-6 py-2 text-white transition-colors hover:bg-blue-800 focus:outline-none sm:px-8 sm:py-3"
+            >
+              <b className="relative text-[1rem] leading-6">Đã hiểu</b>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
@@ -430,6 +474,28 @@ function buildTrueFalseDetailQuestion(
 
 function normalizeAnswer(value?: string | null) {
   return (value ?? "").trim().toLowerCase();
+}
+
+function usesExamWindow(examType: string): boolean {
+  const normalized = examType.trim().toLowerCase();
+  return normalized === "mock_test" || normalized === "official";
+}
+
+function isExamWindowStillOpen(
+  examType: string,
+  startTime: string | undefined,
+  durationSeconds: number
+): boolean {
+  if (!usesExamWindow(examType) || !startTime || durationSeconds <= 0) {
+    return false;
+  }
+
+  const startAtMs = new Date(startTime).getTime();
+  if (Number.isNaN(startAtMs)) {
+    return false;
+  }
+
+  return Date.now() < startAtMs + durationSeconds * 1000;
 }
 
 function ResultQuestionDot({ question }: { question: DetailQuestion }) {

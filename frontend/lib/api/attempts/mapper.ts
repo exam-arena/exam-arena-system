@@ -21,6 +21,7 @@ interface RawExam {
   title: string;
   type: string;
   duration: number;
+  start_time?: string;
   room_id: string;
   sections: SectionRaw[];
 }
@@ -102,7 +103,13 @@ export function mapAttemptResult(
       email: user.email,
       role: user.role,
     },
-    exam: { id: exam.exam_id, title: exam.title, type: exam.type },
+    exam: {
+      id: exam.exam_id,
+      title: exam.title,
+      type: exam.type,
+      duration: exam.duration,
+      start_time: exam.start_time,
+    },
     room: { id: room.room_id, name: room.name },
     result: {
       score: attempt.marks ? attempt.marks.toString() : "8.0",
