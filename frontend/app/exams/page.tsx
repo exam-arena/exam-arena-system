@@ -1,6 +1,6 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import ExamCard from "@/components/exam/ExamCard";
+import ExamCardGrid from "@/components/exam/ExamCardGrid";
 import CustomPagination from "@/components/shared/CustomPagination";
 import Banner from "@/components/sections/Banner";
 import { getExams } from "@/lib/api/exams/api";
@@ -37,17 +37,13 @@ export default async function ExamsPage({
                     </div>
 
                     {/* Exams Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-                        {exams.length > 0 ? (
-                            exams.map((exam) => (
-                                <ExamCard key={exam.exam_id} {...exam} image="/carddethi.png" />
-                            ))
-                        ) : (
-                            <div className="col-span-2 sm:col-span-2 lg:col-span-4 text-center py-10 text-gray-500 font-medium">
-                                Chưa có đề thi nào.
-                            </div>
-                        )}
-                    </div>
+                    <ExamCardGrid
+                        exams={exams}
+                        image="/carddethi.png"
+                        gridClassName="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8"
+                        emptyClassName="col-span-2 sm:col-span-2 lg:col-span-4 text-center py-10 text-gray-500 font-medium"
+                        emptyMessage="Chưa có đề thi nào."
+                    />
 
                     {/* Pagination */}
                     {totalPages > 1 && (
