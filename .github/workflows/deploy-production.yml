@@ -1,0 +1,74 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_ref:
+        description: Branch, tag, or commit SHA to deploy
+        required: true
+        default: dev/v2
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: [self-hosted, linux, x64, production]
+    environment: production
+
+    steps:
+      - name: Checkout deploy ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.deploy_ref }}
+          fetch-depth: 0
+
+      - name: Resolve deploy commit
+        run: |
+          echo "DEPLOY_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git rev-parse --short HEAD
+
+      - name: Verify required smoke secrets
+        env:
+          SMOKE_IDENTIFIER: ${{ secrets.SMOKE_IDENTIFIER }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+          SMOKE_EXAM_ID: ${{ secrets.SMOKE_EXAM_ID }}
+        run: |
+          test -n "$SMOKE_IDENTIFIER"
+          test -n "$SMOKE_PASSWORD"
+          test -n "$SMOKE_EXAM_ID"
+
+      - name: Deploy on EC2
+        run: |
+          set -euo pipefail
+
+          cd ~/exam-arena-system
+          git fetch origin --prune
+          git checkout --detach "$DEPLOY_SHA"
+          git rev-parse --short HEAD
+
+          docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ec2.yml config >/dev/null
+          docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ec2.yml build backend frontend
+          docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ec2.yml up -d
+          docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.ec2.yml ps
+
+          curl -fsS https://api.examarena.id.vn/healthz >/dev/null
+          curl -fsS https://api.examarena.id.vn/readyz >/dev/null
+
+      - name: Setup Node for smoke test
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Smoke test production
+        env:
+          SMOKE_API_URL: https://api.examarena.id.vn
+          SMOKE_IDENTIFIER: ${{ secrets.SMOKE_IDENTIFIER }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+          SMOKE_EXAM_ID: ${{ secrets.SMOKE_EXAM_ID }}
+        run: node scripts/smoke-beta-flow.js
