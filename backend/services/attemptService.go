@@ -660,7 +660,6 @@ func enqueueAttemptAnswerBuffer(ctx context.Context, attemptID string, answers [
 		return 0, err
 	}
 
-	log.Printf("[INFO] enqueueAttemptAnswerBuffer attempt_id=%s answer_count=%d buffer_version=%d", attemptID, len(answers), versionCmd.Val())
 	return versionCmd.Val(), nil
 }
 
@@ -699,7 +698,6 @@ func SubmitAttempt(ctx context.Context, input SubmitAttemptInput) (*SubmitAttemp
 				return buildSubmitAttemptStatusResponse(input.AttemptID, status), nil
 			}
 		} else {
-			log.Printf("[INFO] SubmitAttempt returning existing status attempt_id=%s user_id=%s status=%s", input.AttemptID, input.UserID, status)
 			return buildSubmitAttemptStatusResponse(input.AttemptID, status), nil
 		}
 	}
@@ -1112,7 +1110,6 @@ func FlushDirtyAttemptAnswers(ctx context.Context, limit int) (int, error) {
 		if err == nil {
 			if didFlush {
 				flushed++
-				log.Printf("[INFO] FlushDirtyAttemptAnswers flushed attempt_id=%s user_id=%s", attemptID, attempt.UserID)
 			}
 			continue
 		}
@@ -1177,7 +1174,6 @@ func flushAttemptAnswerBufferOnce(ctx context.Context, attemptID, userID string)
 		return false, err
 	}
 	if !claimed {
-		log.Printf("[INFO] flushAttemptAnswerBufferOnce no buffer attempt_id=%s user_id=%s", attemptID, userID)
 		return false, nil
 	}
 
@@ -1189,7 +1185,6 @@ func flushAttemptAnswerBufferOnce(ctx context.Context, attemptID, userID string)
 	if len(bufferedAnswers) == 0 {
 		clearClaimedAttemptAnswerBuffer(ctx, attemptID, claimedKey)
 		setAttemptAnswerFlushedVersion(ctx, attemptID, claimedVersion)
-		log.Printf("[INFO] flushAttemptAnswerBufferOnce claimed empty attempt_id=%s user_id=%s version=%d", attemptID, userID, claimedVersion)
 		return true, nil
 	}
 
@@ -1232,7 +1227,6 @@ func flushAttemptAnswerBufferOnce(ctx context.Context, attemptID, userID string)
 	invalidateAttemptReviewCache(userID, attemptID)
 	invalidateAttemptResultCache(userID, attemptID)
 
-	log.Printf("[INFO] flushAttemptAnswerBufferOnce persisted attempt_id=%s user_id=%s answer_count=%d version=%d payload_count=%d resolved_count=%d upserted_count=%d saved_rows=%d", attemptID, userID, len(bufferedAnswers), claimedVersion, savedResult.PayloadCount, savedResult.ResolvedCount, savedResult.UpsertedCount, len(savedResult.Rows))
 	return true, nil
 }
 
@@ -1284,7 +1278,6 @@ return {1, version}
 		return "", 0, false, err
 	}
 
-	log.Printf("[INFO] claimAttemptAnswerBuffer attempt_id=%s claimed=%t version=%d flushing_key=%s", attemptID, claimed == 1, version, flushingKey)
 	return flushingKey, version, claimed == 1, nil
 }
 
@@ -1508,7 +1501,7 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 	}
 	switch submitResult.Status {
 	case "in_progress", "submitted":
-		score, err := calculateAndPersistAttemptMarks(ctx, attemptID)
+		_, err := calculateAndPersistAttemptMarks(ctx, attemptID)
 		if err != nil {
 			return err
 		}
@@ -1525,7 +1518,6 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 		warmRoomExamCacheAfterSubmit(ctx, userID, attemptID)
 		clearAttemptSubmitStatus(ctx, attemptID)
 		_ = setAttemptSubmitStatus(ctx, attemptID, submitAttemptStatusDone)
-		log.Printf("[INFO] FinalizeQueuedSubmitAttempt done attempt_id=%s user_id=%s score=%s", attemptID, userID, formatResultScore(score))
 		return nil
 	default:
 		return ErrAttemptClosed
@@ -1959,7 +1951,6 @@ func GetAttemptResult(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		return nil, err
 	}
 	if result, ok := loadAttemptResultFromCache(ctx, cacheKey); ok {
-		log.Printf("[INFO] GetAttemptResult cache hit attempt_id=%s user_id=%s score=%s", input.AttemptID, input.UserID, result.Result.Score)
 		return result, nil
 	}
 
@@ -1969,7 +1960,6 @@ func GetAttemptResult(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		}
 
 		if result, ok := loadAttemptResultFromCache(ctx, cacheKey); ok {
-			log.Printf("[INFO] GetAttemptResult cache hit attempt_id=%s user_id=%s score=%s", input.AttemptID, input.UserID, result.Result.Score)
 			return result, nil
 		}
 
@@ -2034,7 +2024,6 @@ func GetAttemptReview(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		return nil, err
 	}
 	if review, ok := loadAttemptReviewFromCache(ctx, cacheKey); ok {
-		log.Printf("[INFO] GetAttemptReview cache hit attempt_id=%s user_id=%s answers=%d", input.AttemptID, input.UserID, len(review.UserAnswers))
 		return review, nil
 	}
 
@@ -2044,7 +2033,6 @@ func GetAttemptReview(ctx context.Context, input GetAttemptDetailInput) (*Attemp
 		}
 
 		if review, ok := loadAttemptReviewFromCache(ctx, cacheKey); ok {
-			log.Printf("[INFO] GetAttemptReview cache hit attempt_id=%s user_id=%s answers=%d", input.AttemptID, input.UserID, len(review.UserAnswers))
 			return review, nil
 		}
 
