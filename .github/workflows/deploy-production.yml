@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       deploy_ref:
-        description: Branch, tag, or commit SHA to deploy
+        description: Production deploy ref. Use main.
         required: true
-        default: dev/v2
+        default: main
 
 concurrency:
   group: production-deploy
@@ -30,6 +30,10 @@ jobs:
 
       - name: Resolve deploy commit
         run: |
+          if [ "${{ inputs.deploy_ref }}" != "main" ]; then
+            echo "Production deploys must use deploy_ref=main."
+            exit 1
+          fi
           echo "DEPLOY_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           git rev-parse --short HEAD
 
