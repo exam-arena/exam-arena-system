@@ -1385,14 +1385,6 @@ export default function AttemptPage() {
 
   const content = currentQuestion ? (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-end">
-        {hasCurrentQuestionAnswer && currentQuestionBadgeText && (
-          <div className={`rounded-full px-3 py-1 text-xs font-medium ${currentQuestionBadgeClass}`}>
-            {currentQuestionBadgeText}
-          </div>
-        )}
-      </div>
-
       <Question
         key={currentQuestion.id}
         number={currentQuestion.globalNum}
@@ -1400,6 +1392,13 @@ export default function AttemptPage() {
         imageUrl={currentQuestion.imageUrl}
         isBookmarked={bookmarks.has(currentQuestion.globalNum)}
         onToggleBookmark={() => toggleBookmark(currentQuestion.globalNum)}
+        statusBadge={
+          hasCurrentQuestionAnswer && currentQuestionBadgeText ? (
+            <div className={`rounded-full px-3 py-1 text-xs font-medium leading-5 ${currentQuestionBadgeClass}`}>
+              {currentQuestionBadgeText}
+            </div>
+          ) : null
+        }
       >
         {currentQuestion.type === "single_choice" && currentQuestion.options && (
           <MultipleChoice
