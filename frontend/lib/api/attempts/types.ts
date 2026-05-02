@@ -87,6 +87,8 @@ export interface SaveAttemptAnswersData {
   saved_at: string;
   saved_count: number;
   answers: SaveAttemptAnswerInput[];
+  storage?: "buffered";
+  buffer_version?: number;
 }
 
 export interface SubmitAttemptData {
