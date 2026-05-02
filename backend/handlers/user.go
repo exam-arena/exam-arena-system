@@ -62,7 +62,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrMissingFields),
 			errors.Is(err, services.ErrInvalidEmail),
 			errors.Is(err, services.ErrInvalidPassword),
-			errors.Is(err, services.ErrInvalidUsername):
+			errors.Is(err, services.ErrInvalidUsername),
+			errors.Is(err, services.ErrInvalidFullname):
 			utils.SendValidationError(w, []utils.ValidationError{
 				{Field: "input", Message: err.Error()},
 			})
