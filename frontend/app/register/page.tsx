@@ -37,8 +37,13 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Mật khẩu phải có ít nhất 8 ký tự");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Định dạng email không hợp lệ");
+      return;
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}/.test(password)) {
+      setError("Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số");
       return;
     }
 
@@ -53,7 +58,7 @@ export default function RegisterPage() {
         } else if (err.code === "TIMEOUT") {
           setError("Máy chủ phản hồi chậm. Vui lòng thử lại");
         } else {
-          setError(err.message);
+          setError(err.details?.[0]?.message || err.message);
         }
       } else {
         setError("Đã xảy ra lỗi. Vui lòng thử lại");
@@ -79,7 +84,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="flex flex-col items-start gap-3 w-full max-w-86">
+        <form id="register-form" onSubmit={handleSubmit} className="flex flex-col items-start gap-3 w-full max-w-86">
 
           {/* Error Message */}
           {error && (
@@ -175,8 +180,8 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center gap-2 w-full">
           <Button
             type="submit"
+            form="register-form"
             disabled={isSubmitting}
-            onClick={handleSubmit}
             className="flex flex-row justify-center items-center py-2 px-4 gap-2 bg-[#FFE96F] hover:bg-[#FFD600] disabled:opacity-60 rounded-num-30 w-auto h-9 transition-colors mt-2"
           >
             <span className="text-[#004EDC] font-bold text-[16px] leading-4.75">
