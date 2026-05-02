@@ -1003,6 +1003,9 @@ func logAttemptAnswerBufferState(ctx context.Context, label, attemptID, userID s
 	if !config.RedisEnabled || config.RedisClient == nil {
 		return
 	}
+	if !attemptDebugLogsEnabled() {
+		return
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1041,6 +1044,11 @@ func logAttemptAnswerBufferState(ctx context.Context, label, attemptID, userID s
 		versionErr,
 		flushedVersionErr,
 	)
+}
+
+func attemptDebugLogsEnabled() bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("ATTEMPT_DEBUG_LOGS")))
+	return value == "1" || value == "true" || value == "yes"
 }
 
 func enqueueSubmitAttempt(ctx context.Context, userID, attemptID string) error {
@@ -1476,6 +1484,18 @@ func FinalizeQueuedSubmitAttempt(ctx context.Context, userID, attemptID string) 
 	}
 	if releaseLock != nil {
 		defer releaseLock()
+	}
+
+	releaseSaveLock, err := acquireSaveAnswersLock(ctx, attemptID)
+	if err != nil {
+		return err
+	}
+	if releaseSaveLock == nil && config.RedisEnabled {
+		log.Printf("[INFO] FinalizeQueuedSubmitAttempt waiting for save lock attempt_id=%s user_id=%s", attemptID, userID)
+		return ErrAttemptProcessing
+	}
+	if releaseSaveLock != nil {
+		defer releaseSaveLock()
 	}
 
 	logAttemptAnswerBufferState(ctx, "finalize-start", attemptID, userID)
