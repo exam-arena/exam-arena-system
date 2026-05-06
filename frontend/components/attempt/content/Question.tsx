@@ -1,4 +1,5 @@
 import React from "react";
+import { QuestionImageViewer } from "./QuestionImageViewer";
 
 interface QuestionProps {
     number?: string | number;
@@ -39,16 +40,7 @@ export function Question({ number, text, imageUrl, isBookmarked, onToggleBookmar
                 <div className="text-[1.125rem] leading-8 flex flex-col items-start gap-4">
                     <div className="w-full">{text}</div>
 
-                    {imageUrl && (
-                        <div className="w-full max-w-2xl mt-2 rounded-lg overflow-hidden border border-cornflowerblue-100/30">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={imageUrl}
-                                alt="Hình minh họa"
-                                className="w-full h-auto object-contain"
-                            />
-                        </div>
-                    )}
+                    {imageUrl && <QuestionImageViewer imageUrl={imageUrl} alt="Hình minh họa" />}
                 </div>
             </div>
             {children && (
